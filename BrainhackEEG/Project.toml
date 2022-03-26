@@ -1,0 +1,4 @@
+name = "BrainhackEEG"
+uuid = "0d7f22b2-4679-4055-8421-94b93cbff039"
+authors = ["Marcin Koculak <koculak.marcin@gmail.com>"]
+version = "0.1.0"
