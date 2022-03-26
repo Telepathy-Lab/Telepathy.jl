@@ -11,7 +11,8 @@ include("io/read_bdf.jl")
 export read_bdf, read_header, RawEEG, bdf_resample
 include("./io/ec_chan.jl")
 export set_montage
-
+include("io/recognize_events.jl")
+export find_events, count_events, scatter_events
 include("viz/plot.jl")
 export plot
 
