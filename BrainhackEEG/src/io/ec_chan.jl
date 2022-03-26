@@ -5,7 +5,7 @@ function set_montage(data::RawEEG)
     x = 2
     for i in range(0,62)
         merge!(chans, Dict(df[x,1] => (df[x,2], df[x,3], df[x,4])))
-        global x = x + 1
+        x = x + 1
     end
     data.chans = chans
 

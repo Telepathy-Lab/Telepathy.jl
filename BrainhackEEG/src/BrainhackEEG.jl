@@ -2,6 +2,7 @@ module BrainhackEEG
 
 using Mmap
 using GLMakie
+using Makie.GeometryBasics
 using Statistics
 using CSV
 using DataFrames
@@ -15,6 +16,8 @@ include("io/recognize_events.jl")
 export find_events, count_events, scatter_events
 include("viz/plot.jl")
 export plot
+include("viz/plotmontage.jl")
+export plotmontage
 
 
 end # module
