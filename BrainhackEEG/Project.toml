@@ -2,3 +2,11 @@ name = "BrainhackEEG"
 uuid = "0d7f22b2-4679-4055-8421-94b93cbff039"
 authors = ["Marcin Koculak <koculak.marcin@gmail.com>"]
 version = "0.1.0"
+
+[deps]
+CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
+DataFrames = "a93c6f00-e57d-5684-b7b6-d8193f3e46c0"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+Mmap = "a63ad114-7e13-5084-954f-fe012c677804"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"

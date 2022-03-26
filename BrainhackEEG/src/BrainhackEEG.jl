@@ -5,9 +5,10 @@ using GLMakie
 using Statistics
 using CSV
 using DataFrames
+using DSP
 
 include("io/read_bdf.jl")
-export read_bdf, read_header, RawEEG, print_test
+export read_bdf, read_header, RawEEG, bdf_resample
 include("./io/ec_chan.jl")
 export set_montage
 
