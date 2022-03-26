@@ -108,10 +108,15 @@ function decodeChanNumbers(fid::IO, nChannels::Int, size::Int)
     return arr
 end
 
-struct RawEEG
+mutable struct RawEEG
     info::Dict
     data::Array
     status::Vector
     lowTrigger::Vector
     highVector::Vector
+    chans:: Dict
+end
+
+function print_test()
+    println("BLablablabla")
 end
