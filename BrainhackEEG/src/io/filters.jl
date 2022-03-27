@@ -25,9 +25,9 @@ end
 Lowpass filter for single signal vector.
 fs - sampling frequency of the input signal (defaults to 2048)
 fw - cutoff frequency
-hw - hanning window (defaults to 128)
+hw - hanning window (defaults to 511)
 """
-function lowpass_filter(input_signal, fw; fs=2048, hw=128)
+function lowpass_filter(input_signal, fw; fs=2048, hw=511)
     responsetype = Lowpass(fw; fs=fs)
     designmethod = FIRWindow(hanning(hw))
     return filt(digitalfilter(responsetype, designmethod), input_signal)
