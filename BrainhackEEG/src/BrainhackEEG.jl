@@ -16,6 +16,8 @@ include("io/recognize_events.jl")
 export find_events, count_events, scatter_events, remove_channels
 include("io/bdf_resample.jl")
 export bdf_resample
+include("io/filters.jl")
+export notch_filter, highpass_filter, lowpass_filter
 include("viz/plot.jl")
 export plot
 include("viz/plotmontage.jl")
