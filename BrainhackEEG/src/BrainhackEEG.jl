@@ -9,15 +9,16 @@ using DataFrames
 using DSP
 
 include("io/read_bdf.jl")
-export read_bdf, read_header, RawEEG, bdf_resample
-include("./io/ec_chan.jl")
+export read_bdf, read_header, RawEEG
+include("io/ec_chan.jl")
 export set_montage
 include("io/recognize_events.jl")
 export find_events, count_events, scatter_events
+include("io/bdf_resample.jl")
+export bdf_resample
 include("viz/plot.jl")
 export plot
 include("viz/plotmontage.jl")
 export plotmontage
-
 
 end # module
