@@ -11,7 +11,7 @@ using DSP
 include("io/read_bdf.jl")
 export read_bdf, read_header, RawEEG
 include("io/ec_chan.jl")
-export set_montage
+export set_montage, bdf_chans, modify_by_reference
 include("io/recognize_events.jl")
 export find_events, count_events, scatter_events, remove_channels
 include("io/bdf_resample.jl")
