@@ -33,3 +33,19 @@ function lowpass_filter(input_signal, fw; fs=2048, hw=128)
     designmethod = FIRWindow(hanning(hw))
     return filt(digitalfilter(responsetype, designmethod), input_signal)
 end
+
+"""
+Applies lowpass filter to the whole dataset.
+Returns new dataset with transformed data.
+"""
+function apply_lowpass_filter(data::RawEEG, prog; hw=511)
+    fs = data.info["sampRate"][1]
+    no_channels = size(data.data)[2]
+    no_samples = size(data.data)[1]
+    new_signals = Array{Float32}(undef, (no_samples,no_channels))
+    for channel in 1:no_channels
+        new_signals[:,channel] = lowpass_filter(data.data[:,channel], prog, fs=fs, hw=hw)
+    end
+    new_data = RawEEG(data.info, new_signals, data.status, data.lowTrigger, data.highVector, data.chans)
+    return new_data
+end
