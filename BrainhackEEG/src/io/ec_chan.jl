@@ -78,3 +78,59 @@ function set_montage(data::RawEEG)
     return data
 end
 
+function modify_by_reference(data::RawEEG; reference_chan = ["average_of_all"])
+    #we check if someone wants to see average signal of all electrodes as reference
+    #reference_chan #the channel that will be reference
+    if reference_chan == ["average_of_all"]
+        reference_chan = []
+        for element in 1:(Int(length(bdf_chans)/4))
+            push!(reference_chan,bdf_chans[element])
+        end
+    end
+    #we take list of all channels and turn them into lowercase strings
+    elec_list_channels = String[]
+    chanlabels_case = []
+    for element in 1:length(data.info["chanLabels"])
+        push!(chanlabels_case, lowercase(data.info["chanLabels"][element]))
+    end
+    #we take list of all channels in data that are electrodes and turn them into lowercase strings
+    bdf_chans_case = String[]
+    for element in 1:(Int(length(bdf_chans)/4))
+        push!(bdf_chans_case,lowercase(bdf_chans[element]))
+    end
+    #we check which electrodes are in our data
+    for element in chanlabels_case
+        if element in bdf_chans_case
+            push!(elec_list_channels, element)
+        end
+    end
+    #we check indexes of electrodes in channels data
+    no_chan = []
+    for a in 1:length(elec_list_channels)
+        push!(no_chan, findfirst(==(elec_list_channels[a]), chanlabels_case))
+    end
+    #we take input with reference electrode, convert it to lowercase, and return its col number in data
+    #return ref_no_chain that is index of column that is going to be reference
+    ref_no_chan = []
+
+    for element in 1:(length(reference_chan))
+        reference_chan_case = lowercase(reference_chan[element])
+        push!(ref_no_chan, findfirst(==(reference_chan_case), chanlabels_case))
+    end
+
+    reference_col = data.data[:, ref_no_chan]
+    #in each row we subtract value from reference columns 
+    if length(ref_no_chan) >1
+        aver = mean(reference_col, dims=2)
+    else 
+        aver = reference_col
+    end
+    new_data = copy(data.data)
+    for i in 1:size(data.data)[2]
+        if i in no_chan
+            new_data[:,i] -= aver
+        end
+    end
+    data.data = new_data
+    return data
+end
