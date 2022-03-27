@@ -69,10 +69,9 @@ function set_montage(data::RawEEG)
     df = DataFrame(bdf_chans, :auto)
     # Assuming average head circumference is 56cm.
     chans = Dict(df[1,1] => (df[1,2], df[1,3], df[1,4]))
-    x = 2
-    for i in range(0,62)
-        merge!(chans, Dict(df[x,1] => (df[x,2], df[x,3], df[x,4])))
-        x = x + 1
+
+    for i in 1:size(df)[1]
+        merge!(chans, Dict(df[i,1] => (df[i,2], df[i,3], df[i,4])))
     end
     data.chans = chans
 
