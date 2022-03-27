@@ -58,3 +58,22 @@ function scatter_events(data::RawEEG)
 end
 
 # scatter_events: Returns a scatter plot of events on values occuring in time points.
+
+function remove_channels(data::RawEEG, channels_to_remove::Vector)
+    info_on_channels = ["chanLabels", "transducer", "physDim", "physMin","physMax","digMin", "digMax", "prefilt", "nSampRec", "reserved",  "scaleFactor", "sampRate"]
+    all_channels = data.info["chanLabels"]
+    no_channels_to_remove = Int[]
+    for a in 1:length(channels_to_remove)
+        push!(no_channels_to_remove, findfirst(==(channels_to_remove[a]), all_channels))
+    end
+
+    sorted_no_channels_to_removesort = sort(no_channels_to_remove, rev = true)
+    for channel in 1:length(sorted_no_channels_to_removesort)
+        for selected in 1:length(info_on_channels)
+            deleteat!(data.info[info_on_channels[selected]], sorted_no_channels_to_removesort[channel])
+        end
+        data.data = data.data[:, 1:end .!= sorted_no_channels_to_removesort[channel]]
+    end
+end
+
+#Function remove channels requires two parameters: data set in RawEEG format, and a vector of strings with channel names e.g. ["P3", "GSR1", "AF7"].

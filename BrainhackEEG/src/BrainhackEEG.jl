@@ -13,7 +13,7 @@ export read_bdf, read_header, RawEEG
 include("io/ec_chan.jl")
 export set_montage
 include("io/recognize_events.jl")
-export find_events, count_events, scatter_events
+export find_events, count_events, scatter_events, remove_channels
 include("io/bdf_resample.jl")
 export bdf_resample
 include("viz/plot.jl")
