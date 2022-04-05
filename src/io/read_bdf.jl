@@ -53,7 +53,6 @@ function read_data(fid::IO, info::Dict{String,Any})
     duration = info["nDataRecords"]
     nChannels = info["nChannels"]
     scaleFactor = info["scaleFactor"]
-    chanLabels = info["chanLabels"]
     #raw = read!(fid, Array{UInt8}(undef, 3*duration*nChannels*srate));
     raw = Mmap.mmap(fid);
     data = Array{Float32}(undef, (srate*duration,nChannels-1));
@@ -61,13 +60,13 @@ function read_data(fid::IO, info::Dict{String,Any})
     lowTrigger = Vector{Float32}(undef, srate*duration)
     highTrigger = Vector{Float32}(undef, srate*duration)
     
-    convert_binary(raw, data, status, lowTrigger, highTrigger, srate, duration, nChannels, scaleFactor, chanLabels)
+    convert_binary(raw, data, status, lowTrigger, highTrigger, srate, duration, nChannels, scaleFactor)
 
     return data, status, lowTrigger, highTrigger
 end
 
 function convert_binary(raw::Array{UInt8}, data::Array{Float32}, status::Vector{Float32}, lowTrigger::Vector{Float32}, highTrigger::Vector{Float32}, 
-                         srate::Int64, duration::Int64, nChannels::Int64, scaleFactor::Vector{Float32}, chanLabels::Vector{String})
+                         srate::Int64, duration::Int64, nChannels::Int64, scaleFactor::Vector{Float32})
     Threads.@threads for record=1:duration
         for chan=1:(nChannels-1)
             for dataPoint=1:srate
@@ -95,7 +94,7 @@ function decodeChanStrings(fid::IO, nChannels::Int, size::Int)
     arr = Array{String}(undef, nChannels)
     buf = read(fid, nChannels*size)
     for i=1:nChannels
-        @inbounds arr[i] = strip(ascii(String(buf[(size*(i-1)+1):(size*(i-1)+size)])))        
+        @inbounds arr[i] = strip(ascii(String(buf[(size*(i-1)+1):(size*(i-1)+size)])))
     end
     return arr
 end

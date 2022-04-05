@@ -1,3 +1,8 @@
+name = "BrainhackEEG"
+uuid = "0d7f22b2-4679-4055-8421-94b93cbff039"
+authors = ["Marcin Koculak <koculak.marcin@gmail.com>"]
+version = "0.1.0"
+
 [deps]
 CSV = "336ed68f-0bac-5ca0-87d4-7b16caf5d00b"
 DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
