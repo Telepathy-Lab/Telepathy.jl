@@ -1,4 +1,4 @@
-module BrainhackEEG
+module Telepathy
 
 using Mmap
 using GLMakie
