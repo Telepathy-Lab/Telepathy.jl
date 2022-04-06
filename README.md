@@ -1,2 +1,6 @@
-# Brainhack-EEG
-Working directory for the Warsaw BrainHack 2022 project on developing EEG analysis package in Julia.
+# Telepathy
+Read minds with EEG!
+
+Work in progress: software for EEG analysis in Julia.
+
+Package started as one of the projects developed during Warsaw BrainHack 2022. Currently going through the initial phase of development, so please consider it experimental with no guarantee of proper functioning.
