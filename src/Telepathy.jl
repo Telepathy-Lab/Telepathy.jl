@@ -16,7 +16,7 @@ include("io/load_data.jl")
 export load_data, parse_status!
 
 include("io/events.jl")
-export find_events
+export find_events!
 
 include("channels/channels.jl")
 export channel_names

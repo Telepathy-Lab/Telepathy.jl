@@ -108,3 +108,5 @@ Raw(filename::String, name, srate, data) = Raw(
     data,
     0:(1/srate):(length(data)/srate),
     Vector[], Dict())
+
+Base.length(raw::Raw) = size(raw.data)[1]
