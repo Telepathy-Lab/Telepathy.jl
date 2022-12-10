@@ -1,3 +1,11 @@
+abstract type FileType end
+
+struct BDF <: FileType end
+struct EEG <: FileType end
+
+Base.show(io::IO, ::Type{BDF}) = print(io, "BDF")
+Base.show(io::IO, ::Type{EEG}) = print(io, "EEG")
+
 """
     Telepathy.Info(filename::String)
 
@@ -15,15 +23,15 @@
         `history`
             List containg all operations performed in Telepathy on the data.
 """
-mutable struct Info{T<:String}
-    filename::T
-    participantID::T
-    recordingID::T
-    date::T
-    history::Vector{T}
+mutable struct Info{T <: FileType}
+    filename::String
+    participantID::String
+    recordingID::String
+    date::String
+    history::Vector{String}
 end
 
-Info(filename) = Info(filename, "", "", "", String[])
+Info(filename) = Info{eval(Symbol(uppercase(filename[end-2:end])))}(filename, "", "", "", String[])
 
 """
     Telepathy.Channels(name::Vector{String}, srate::Real)
@@ -82,13 +90,16 @@ abstract type Recording end
             Array with the signals in the same order as entries in Channels.
         `events::Vector`
             Vector of tuples containing timepoint and label pairs marking events in data.
+        `status::Dict`
+            Dictionary of values extracted from the Status channel of BioSemi .bdf files.
 """
-mutable struct Raw <: Recording
-    info::Info
+mutable struct Raw{T} <: Recording where T
+    info::Info{T}
     chans::Channels
     data::Array
     times::StepRangeLen
     events::Vector
+    status::Dict
 end
 
 Raw(filename::String, name, srate, data) = Raw(
@@ -96,4 +107,4 @@ Raw(filename::String, name, srate, data) = Raw(
     Channels(name, srate),
     data,
     0:(1/srate):(length(data)/srate),
-    Vector[])
+    Vector[], Dict())
