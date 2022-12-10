@@ -56,6 +56,34 @@ function read_from_bdf(file)
 
         data = EEGIO.read_bdf_data(fid, header, true, Float32, :All, :None, :All, true, false)
 
-        return Raw(hdr, chns, data, [""])
+        times = 0:(1/srate[1]):(length(data)/srate[1])
+        status = Dict(
+            "lowTrigger" => UInt8[0],
+            "highTrigger" => UInt8[0],
+            "status" => UInt8[0],
+        )
+        return Raw(hdr, chns, data, times, [""], status)
     end
+end
+
+function parse_status!(raw::Raw{BDF})
+    if "Status" in channel_names(raw)
+        raw.status["lowTrigger"], raw.status["highTrigger"], raw.status["status"] = parse_status(raw.data)
+    else
+        error("No Status channel in data.")
+    end
+end
+
+function parse_status(data::Matrix)
+    a = Int32.(data[:,end])
+    trigL = Vector{UInt8}(undef, length(a))
+    trigH = Vector{UInt8}(undef, length(a))
+    status = Vector{UInt8}(undef, length(a))
+
+    for sample in eachindex(a)
+        trigL[sample] = (a[sample]>>((1-1)<<3))%UInt8
+        trigH[sample] = (a[sample]>>((2-1)<<3))%UInt8
+        status[sample] = (a[sample]>>((3-1)<<3))%UInt8
+    end
+    return trigL, trigH, status
 end
