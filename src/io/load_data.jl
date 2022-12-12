@@ -62,28 +62,31 @@ function read_from_bdf(file)
             "highTrigger" => UInt8[0],
             "status" => UInt8[0],
         )
-        return Raw(hdr, chns, data, times, [""], status)
+        return Raw(hdr, chns, data, times, Array{Int64}[], status)
     end
 end
 
 function parse_status!(raw::Raw{BDF})
-    if "Status" in channel_names(raw)
-        raw.status["lowTrigger"], raw.status["highTrigger"], raw.status["status"] = parse_status(raw.data)
-    else
+    idx = get_channels(raw, "Status")
+    if length(idx) == 1
+        raw.status["lowTrigger"], raw.status["highTrigger"], raw.status["status"] = parse_status(raw.data[:,idx[1]])
+    elseif length(idx) == 0
         error("No Status channel in data.")
+    else
+        error("Multiple channels named Status in data.")
     end
 end
 
-function parse_status(data::Matrix)
+function parse_status(data::Vector)
     a = Int32.(data[:,end])
-    trigL = Vector{UInt8}(undef, length(a))
-    trigH = Vector{UInt8}(undef, length(a))
+    triggerLow = Vector{UInt8}(undef, length(a))
+    triggerHigh = Vector{UInt8}(undef, length(a))
     status = Vector{UInt8}(undef, length(a))
 
     for sample in eachindex(a)
-        trigL[sample] = (a[sample]>>((1-1)<<3))%UInt8
-        trigH[sample] = (a[sample]>>((2-1)<<3))%UInt8
+        triggerLow[sample] = (a[sample]>>((1-1)<<3))%UInt8
+        triggerHigh[sample] = (a[sample]>>((2-1)<<3))%UInt8
         status[sample] = (a[sample]>>((3-1)<<3))%UInt8
     end
-    return trigL, trigH, status
+    return triggerLow, triggerHigh, status
 end
