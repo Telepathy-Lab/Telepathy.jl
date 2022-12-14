@@ -61,13 +61,13 @@ Info(filename) = Info{eval(Symbol(uppercase(filename[end-2:end])))}(filename, ""
 mutable struct Channels
     name::Vector{String}
     type::Vector{String}
-    location::Array{Real}
+    location::Layout
     srate::Vector{Real}
     filters::Vector{Dict}
 end
 
-Channels(name, srate) = Channels(name, fill("EEG", length(names)), Array{Real}[], srate, Dict[])
-Channels(name, srate::Real) = Channels(name, fill("EEG", length(name)), Array{Real}[], 
+Channels(name, srate) = Channels(name, fill("EEG", length(names)), EmptyLayout(), srate, Dict[])
+Channels(name, srate::Real) = Channels(name, fill("EEG", length(name)), EmptyLayout(), 
                                 fill(srate, length(name)), Dict[])
 
 """

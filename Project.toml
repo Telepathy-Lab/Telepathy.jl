@@ -5,4 +5,5 @@ authors = ["Marcin Koculak <koculak.marcin@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 EEGIO = "0b63a203-985a-4b95-9578-b702c99cc299"

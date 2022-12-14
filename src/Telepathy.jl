@@ -1,6 +1,7 @@
 module Telepathy
 
 using EEGIO
+using DelimitedFiles
 #using Mmap
 #using GLMakie
 #using Makie.GeometryBasics
@@ -9,6 +10,7 @@ using EEGIO
 #using DataFrames
 #using DSP
 
+include("types/components.jl")
 include("types/EEG.jl")
 export Raw
 
@@ -20,6 +22,9 @@ export find_events!
 
 include("channels/channels.jl")
 export channel_names
+
+include("channels/layout.jl")
+export read_layout, set_layout!
 
 # include("io/read_bdf.jl")
 # export read_bdf, read_header

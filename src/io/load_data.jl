@@ -1,3 +1,5 @@
+# TODO: Add passing kwargs to EEGIO functions
+
 function load_data(file::String)
     println("Loading data from $file")
     format = recognize_format(file)
@@ -37,14 +39,13 @@ function read_from_bdf(file)
 
         names = Vector{String}(undef, header.nChannels)
         types = Vector{String}(undef, header.nChannels)
-        locations = Array{Real}(undef, (header.nChannels,3))
+        locations = EmptyLayout()
         srate = Vector{Real}(undef, header.nChannels)
         filters = Vector{Dict}(undef, header.nChannels)
 
         for i in eachindex(header.chanLabels)
             names[i] = header.chanLabels[i]
             types[i] = header.chanLabels[i] == "Status" ? "Stim" : "EEG"
-            locations[i,:] = [0,0,0]
             srate[i] = Int32(header.nSampRec[i] / header.recordDuration)
             filters[i] = Dict("filt" => header.prefilt[i])
         end
