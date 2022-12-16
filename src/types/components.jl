@@ -80,7 +80,7 @@ function Spherical(layout::Geographic)
             phi[i] = NaN
         else
             layout.theta[i] <= 0 ? theta[i] = 90 - layout.phi[i] : theta[i] = layout.phi[i] - 90
-            layout.theta[i] <= 0 ? phi[i] = layout.theta[i] - 90 : phi[i] = layout.theta[i] + 90
+            layout.theta[i] <= 0 ? phi[i] = 90 + layout.theta[i] : phi[i] = layout.theta[i] - 90
         end
     end
     Spherical(layout.label, theta, phi)
