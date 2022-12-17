@@ -2,6 +2,7 @@ module Telepathy
 
 using EEGIO
 using DelimitedFiles
+import UnicodePlots: scatterplot, scatterplot!
 #using Mmap
 #using GLMakie
 #using Makie.GeometryBasics
@@ -25,6 +26,9 @@ export channel_names
 
 include("channels/layout.jl")
 export read_layout, set_layout!
+
+include("viz/plot_layout.jl")
+export plot_layout
 
 # include("io/read_bdf.jl")
 # export read_bdf, read_header
