@@ -38,14 +38,14 @@ function read_from_bdf(file)
         hdr.history = [""]
 
         names = Vector{String}(undef, header.nChannels)
-        types = Vector{String}(undef, header.nChannels)
+        types = Vector{Sensor}(undef, header.nChannels)
         locations = EmptyLayout()
         srate = Vector{Real}(undef, header.nChannels)
         filters = Vector{Dict}(undef, header.nChannels)
 
         for i in eachindex(header.chanLabels)
             names[i] = header.chanLabels[i]
-            types[i] = header.chanLabels[i] == "Status" ? "Stim" : "EEG"
+            types[i] = header.chanLabels[i] == "Status" ? STIM() : EEG()
             srate[i] = Int32(header.nSampRec[i] / header.recordDuration)
             filters[i] = Dict("filt" => header.prefilt[i])
         end
