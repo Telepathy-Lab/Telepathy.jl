@@ -4,7 +4,7 @@ function resample!(raw::Raw, newSrate::Int; type=:FFT)
     # Other channels are assumed to be digital and will be decimated
     chansEEG = get_channels(raw, :EEG)
     oldSrate = raw.chans.srate[1]
-    sRatio = oldSrate / newSrate
+    sRatio = newSrate / oldSrate
     oldLength = size(raw.data, 1)
     newLength = Int(oldLength*newSrate/oldSrate)
 
@@ -14,13 +14,13 @@ function resample!(raw::Raw, newSrate::Int; type=:FFT)
     if type == :FFT
         resample!(raw, resampledData, chansEEG, sRatio, oldLength, newLength)
     elseif type == :POLY
-        @warn "Polyphase filter resampling is not yet implemented!"
+        resample!(raw, resampledData, chansEEG, sRatio, oldLength)
     end
     return resampledData
 end
 
 function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, newLength)
-    fftLength = sRatio > 1 ? oldLength+1 : newLength +1
+    fftLength = sRatio < 1 ? oldLength+1 : newLength +1
 
     nThr = Threads.nthreads()
 
@@ -44,7 +44,9 @@ function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, newLeng
     end
 end
 
-function resample_channel!(inputBuffer, fftBuffer, outputBuffer, raw, chan, resampledData, rfftPlan, irfftPlan, oldLength, newLength, sRatio)
+function resample_channel!(inputBuffer, fftBuffer, outputBuffer, raw, chan, resampledData, 
+    rfftPlan, irfftPlan, oldLength, newLength, sRatio)
+
     @views begin
         inputBuffer[1:oldLength] .= raw.data[:, chan]
         inputBuffer[end:-1:oldLength+1] .= raw.data[:, chan]
@@ -52,11 +54,48 @@ function resample_channel!(inputBuffer, fftBuffer, outputBuffer, raw, chan, resa
         mul!(fftBuffer[1:oldLength+1], rfftPlan, inputBuffer)
         mul!(outputBuffer, irfftPlan, fftBuffer[1:newLength+1])
 
-        resampledData[:, chan] .= outputBuffer[1:newLength] ./ sRatio
+        resampledData[:, chan] .= outputBuffer[1:newLength] .* sRatio
     end
 end
 
-# function DSP.resample(raw::Raw, srate::Int)
-#     println("yes")
-# end
+function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength)
+    nThr = Threads.nthreads()
 
+    h = resample_filter(sRatio)
+    polyFIR = [FIRFilter(h, sRatio) for thr in 1:nThr]
+    tDelta = timedelay(polyFIR[1])
+
+    τ = timedelay(polyFIR[1])
+    setphase!.(polyFIR, τ)
+
+    # We are padding the data with 1s of mirrored values on both ends
+    oldRate = raw.chans.srate[1]
+    newRate = Int(oldRate*sRatio)
+
+    mirrorBuffer = oldLength+2*oldRate
+    outLen       = ceil(Int, mirrorBuffer*sRatio)
+    reqInlen     = inputlength(polyFIR[1], outLen)
+    reqZerosLen  = reqInlen - mirrorBuffer
+    
+    inputBuffer  = [zeros(Float32, mirrorBuffer+reqZerosLen) for thr in 1:nThr]
+    outputBuffer = [zeros(Float32, Int(mirrorBuffer*sRatio)) for thr in 1:nThr]
+    
+    Threads.@threads for chan in chansEEG
+        thrID = Threads.threadid()
+
+        resample_channel!(inputBuffer, outputBuffer, raw, resampledData, oldRate, oldLength, 
+        newRate, reqZerosLen, polyFIR, τ, chan, thrID)
+    end
+end
+
+function resample_channel!(inputBuffer, outputBuffer, raw, resampledData, oldRate, oldLength, 
+    newRate, reqZerosLen, polyFIR, τ, chan, thrID)
+
+    inputBuffer[thrID][1:oldRate] .= view(raw.data, oldRate:-1:1, chan)
+    inputBuffer[thrID][oldRate+1:oldRate+oldLength] .= view(raw.data, :, chan)
+    inputBuffer[thrID][oldRate+oldLength+1:(end-reqZerosLen)] .= view(raw.data, oldLength:-1:(oldLength-oldRate+1), chan)
+    filt!(outputBuffer[thrID], polyFIR[thrID], inputBuffer[thrID])
+    setphase!(polyFIR[thrID], τ)
+
+    resampledData[:, chan] .= outputBuffer[thrID][newRate+1:end-newRate]
+end
