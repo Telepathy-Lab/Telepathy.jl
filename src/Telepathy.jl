@@ -9,7 +9,12 @@ import UnicodePlots: scatterplot, scatterplot!
 #using Statistics
 #using CSV
 #using DataFrames
-#using DSP
+using DSP
+using FFTW
+using LinearAlgebra
+
+# For now, there is no clear benefit of having more threads in FFTW
+FFTW.set_num_threads(1)
 
 include("types/components.jl")
 include("types/EEG.jl")
@@ -22,13 +27,16 @@ include("io/events.jl")
 export find_events!
 
 include("channels/channels.jl")
-export channel_names
+export channel_names, get_channels, set_type!
 
 include("channels/layout.jl")
 export read_layout, set_layout!
 
 include("viz/plot_layout.jl")
 export plot_layout
+
+include("preprocessing/resample.jl")
+export resample!
 
 # include("io/read_bdf.jl")
 # export read_bdf, read_header

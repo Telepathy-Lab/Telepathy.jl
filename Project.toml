@@ -5,6 +5,9 @@ authors = ["Marcin Koculak <koculak.marcin@gmail.com>"]
 version = "0.1.0"
 
 [deps]
+DSP = "717857b8-e6f2-59f4-9121-6e50c889abd2"
 DelimitedFiles = "8bb1440f-4735-579b-a4ab-409b98df4dab"
 EEGIO = "0b63a203-985a-4b95-9578-b702c99cc299"
+FFTW = "7a1cc6ca-52ef-59f5-83cd-3a7055c09341"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 UnicodePlots = "b8865327-cd53-5732-bb35-84acbb429228"
