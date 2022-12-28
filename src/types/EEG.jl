@@ -136,13 +136,20 @@ Raw(filename::String, name, srate, data) = Raw(
 )
 
 # Overloading some functions from Base to make Raw more workable
-Base.length(raw::Raw) = size(raw.data, 1)
+Base.length(raw::Raw) = size(raw.data, 2)
+Base.size(raw::Raw) = size(raw.data, 2)
 
 # Requirements for indexing Raw as an array Raw.data
 Base.getindex(raw::Raw, indices...) = raw.data[get_data(raw, indices...)...]
 Base.setindex!(raw::Raw, v, indices...) = Base.setindex!(raw.data, v, get_data(raw, indices...)...)
-Base.firstindex(raw::Raw) = Base.firstindex(raw.data)
-Base.lastindex(raw::Raw) = Base.lastindex(raw.data)
+
+# Commented out first and last index until decided if we want to support `begin` and `end`
+# syntax, as it would require changes in get_data - e.g. fixed order of selectors.
+#Base.firstindex(raw::Raw) = Base.firstindex(raw.data)
+#Base.lastindex(raw::Raw) = Base.lastindex(raw.data)
+Base.iterate(raw::Raw, n=1) = n > length(raw) ? nothing : (raw.data[:,n], n+1)
+Base.IndexStyle(raw::Raw) = IndexLinear()
+
 Base.axes(raw::Raw) = Base.axes(raw.data)
 Base.axes(raw::Raw, d) = Base.axes(raw.data, d)
 Base.view(raw::Raw, indices...) = Base.view(raw.data, get_data(raw, indices...)...)

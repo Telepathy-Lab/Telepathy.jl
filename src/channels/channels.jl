@@ -12,7 +12,10 @@ function get_channels(data, types::Vector{Symbol})
     return findall(x -> typeof(x) in types, data.chans.type)
 end
 
-get_channels(data::Raw, name::String) = get_channels(data, [name])
+# Selecting the first element make the slicing return a Vector rather than a Matrix
+function get_channels(data::Raw, name::String)
+    return get_channels(data, [name])[1]
+end
 function get_channels(data, names::Vector{String})
     return findall(x -> x in names, data.chans.name)
 end
@@ -42,7 +45,7 @@ get_data(raw::Raw, first::colTypes) = get_data(raw, :, first)
 get_data(raw::Raw, first::colTypes, second::rowTypes) = get_data(raw, second, first)
 get_data(raw::Raw, first::Colon, second::Colon) = (first, second)
 function get_data(raw::Raw, first::rowTypes, second::colTypes)
-    get_times(raw, first), get_channels(raw, second)
+    return get_times(raw, first), get_channels(raw, second)
 end
 
 function set_type!(data, chans, type::Sensor)
