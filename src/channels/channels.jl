@@ -48,6 +48,8 @@ function get_data(raw::Raw, first::rowTypes, second::colTypes)
     return get_times(raw, first), get_channels(raw, second)
 end
 
+set_type!(data, chans, type::Symbol) = set_type!(data, chans, eval(:(Telepathy.$type)))
+set_type!(data, chans, type::Type{<:Sensor}) = set_type!(data, chans, type())
 function set_type!(data, chans, type::Sensor)
     chanIDs = get_channels(data, chans)
     for i in chanIDs

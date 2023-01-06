@@ -1,3 +1,5 @@
+# TODO: Allow finding events based on first-non-zero, same value for given period of time, increasing value
+
 function find_events!(raw::Raw{BDF})
 
     if length(raw) > length(raw.status["lowTrigger"])
@@ -27,6 +29,7 @@ function find_events!(raw::Raw{BDF})
     end
 end
 
+# FIXME: Make parsing events more generic (now it is hardcoded to a specific use case)
 function find_events(trigger::Vector)
     vec = diff(Int32.(trigger))
     trs = [filter(x -> x!=0,  vec) findall(x -> x!=0,  vec)]

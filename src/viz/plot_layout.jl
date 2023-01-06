@@ -1,5 +1,6 @@
 plot_layout(raw::Raw) = plot_layout(raw.chans.location)
 
+# TODO: Add nose and ears
 function plot_layout(layout::Layout)
     # Head measurement in centimeters
     circ = 55
