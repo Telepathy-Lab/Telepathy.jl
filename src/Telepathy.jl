@@ -4,9 +4,9 @@ using EEGIO
 using DelimitedFiles
 import UnicodePlots: scatterplot, scatterplot!
 #using Mmap
-#using GLMakie
+using GLMakie
 #using Makie.GeometryBasics
-#using Statistics
+using Statistics
 #using CSV
 #using DataFrames
 using DSP
@@ -14,6 +14,7 @@ using FFTW
 using LinearAlgebra
 
 # For now, there is no clear benefit of having more threads in FFTW
+# Setting this to 1, so there will be no interference with Julia threading
 FFTW.set_num_threads(1)
 
 include("types/components.jl")
@@ -34,6 +35,8 @@ export read_layout, set_layout!
 
 include("viz/plot_layout.jl")
 export plot_layout
+
+include("viz/plot_raw.jl")
 
 include("preprocessing/resample.jl")
 export resample!
