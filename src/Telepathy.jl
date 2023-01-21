@@ -41,6 +41,9 @@ include("viz/plot_raw.jl")
 include("preprocessing/resample.jl")
 export resample!
 
+include("preprocessing/filter.jl")
+export filter_data!
+
 # include("io/read_bdf.jl")
 # export read_bdf, read_header
 # include("io/ec_chan.jl")
