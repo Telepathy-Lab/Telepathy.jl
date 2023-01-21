@@ -87,11 +87,12 @@ mutable struct Channels
     location::Layout
     srate::Vector{Real}
     filters::Vector{Dict}
+    reference::Vector{String}
 end
 
-Channels(name, srate) = Channels(name, fill(EEG(), length(name)), EmptyLayout(), srate, Dict[])
+Channels(name, srate) = Channels(name, fill(EEG(), length(name)), EmptyLayout(), srate, Dict[], String[])
 Channels(name, srate::Real) = Channels(name, fill(EEG(), length(name)), EmptyLayout(), 
-                                fill(srate, length(name)), Dict[])
+                                fill(srate, length(name)), Dict[], String[])
 
 """
     Telepathy.Recording

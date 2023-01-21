@@ -1,4 +1,5 @@
 # TODO: Add passing kwargs to EEGIO functions
+# TODO: Allow to specify the type of channel on load (e.g. EEG, ECoG, etc.)
 
 function load_data(file::String)
     println("Loading data from $file")
@@ -42,10 +43,11 @@ function read_from_bdf(file)
         locations = EmptyLayout()
         srate = Vector{Real}(undef, header.nChannels)
         filters = Vector{Dict}(undef, header.nChannels)
+        reference = Vector{String}(undef, header.nChannels)
 
         for i in eachindex(header.chanLabels)
             names[i] = header.chanLabels[i]
-            types[i] = header.chanLabels[i] == "Status" ? STIM() : EEG()
+            types[i] = parse_electrode_type(header.transducer[i])
             srate[i] = Int32(header.nSampRec[i] / header.recordDuration)
             filters[i] = Dict("filt" => header.prefilt[i])
         end
@@ -54,6 +56,7 @@ function read_from_bdf(file)
         chns.location = locations
         chns.srate = srate
         chns.filters = filters
+        chns.reference = reference
 
         data = EEGIO.read_bdf_data(fid, header, true, Float32, :All, :None, :All, true)
 
@@ -64,6 +67,16 @@ function read_from_bdf(file)
             "status" => UInt8[0],
         )
         return Raw(hdr, chns, data, times, Array{Int64}[], status)
+    end
+end
+
+function parse_electrode_type(transducer::String)
+    if occursin("Active", transducer)
+        return EEG()
+    elseif occursin("Status", transducer)
+        return STIM()
+    else
+        return MISC()
     end
 end
 
