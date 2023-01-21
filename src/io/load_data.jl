@@ -55,7 +55,7 @@ function read_from_bdf(file)
         chns.srate = srate
         chns.filters = filters
 
-        data = EEGIO.read_bdf_data(fid, header, true, Float32, :All, :None, :All, true, false)
+        data = EEGIO.read_bdf_data(fid, header, true, Float32, :All, :None, :All, true)
 
         times = 0:(1/srate[1]):(length(data)/srate[1])
         status = Dict(

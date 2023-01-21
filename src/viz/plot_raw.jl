@@ -296,6 +296,8 @@ function Makie.plot(raw::Raw; channels=1:20, timeSpan=10., step=0.25, hotkeys=ra
     ax.yticklabelsize = 12
 
     display(fig)
+
+    return fig, ax, ax2
 end
 
 function Makie.plot(rawOne::Raw, rawTwo::Raw; channels=1:20, timeSpan=10., step=0.25, hotkeys=rawHotkeys, buffSize=50_000)
