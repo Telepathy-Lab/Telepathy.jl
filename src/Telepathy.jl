@@ -7,6 +7,7 @@ import UnicodePlots: scatterplot, scatterplot!
 using GLMakie
 #using Makie.GeometryBasics
 using Statistics
+using StatsBase
 #using CSV
 #using DataFrames
 using DSP
@@ -38,11 +39,15 @@ export plot_layout
 
 include("viz/plot_raw.jl")
 
+include("preprocessing/filter.jl")
+export filter_data!
+
+include("preprocessing/rereference.jl")
+export get_reference, set_reference, set_reference!
+
 include("preprocessing/resample.jl")
 export resample!
 
-include("preprocessing/filter.jl")
-export filter_data!
 
 # include("io/read_bdf.jl")
 # export read_bdf, read_header

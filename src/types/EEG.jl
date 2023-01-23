@@ -87,7 +87,7 @@ mutable struct Channels
     location::Layout
     srate::Vector{Real}
     filters::Vector{Dict}
-    reference::Vector{String}
+    reference::Vector{Vector{String}}
 end
 
 Channels(name, srate) = Channels(name, fill(EEG(), length(name)), EmptyLayout(), srate, Dict[], String[])

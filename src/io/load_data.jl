@@ -43,7 +43,7 @@ function read_from_bdf(file)
         locations = EmptyLayout()
         srate = Vector{Real}(undef, header.nChannels)
         filters = Vector{Dict}(undef, header.nChannels)
-        reference = Vector{String}(undef, header.nChannels)
+        reference = fill([""], header.nChannels)
 
         for i in eachindex(header.chanLabels)
             names[i] = header.chanLabels[i]
