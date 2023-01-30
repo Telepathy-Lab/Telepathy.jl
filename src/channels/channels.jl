@@ -2,6 +2,10 @@ function channel_names(raw::Raw)
     return raw.chans.name
 end
 
+# Generic versions for use without EEG objects
+get_channels(data::AbstractArray, chanID::Integer) = get_channels(data, chanID:chanID)
+get_channels(data::AbstractArray, chanRange::UnitRange) = collect(intersect(1:size(data, 2), chanRange))
+
 # Selection based on integer indices
 get_channels(data::Raw, chanID::Integer) = get_channels(data, chanID:chanID) 
 get_channels(data::Raw, chanRange::UnitRange) = collect(intersect(1:length(data.chans.name), chanRange))
