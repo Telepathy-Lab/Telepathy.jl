@@ -48,6 +48,11 @@ export get_reference, set_reference, set_reference!
 include("preprocessing/resample.jl")
 export resample!
 
+include("utils/threading.jl")
+
+include("utils/preferences.jl")
+
+options = Options()
 
 # include("io/read_bdf.jl")
 # export read_bdf, read_header

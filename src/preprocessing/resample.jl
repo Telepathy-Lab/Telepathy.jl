@@ -1,4 +1,4 @@
-function resample!(raw::Raw, newSrate::Int; type=:FFT)
+function resample!(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads)
 
     # Pick only EEG data for resampling
     # Other channels are assumed to be digital and will be decimated
@@ -12,21 +12,19 @@ function resample!(raw::Raw, newSrate::Int; type=:FFT)
     resampledData = zeros(Float32, newLength, size(raw.data,2))
 
     if type == :FFT
-        resample!(raw, resampledData, chansEEG, sRatio, oldLength, newLength)
+        resample!(raw, resampledData, chansEEG, sRatio, oldLength, newLength, nThreads)
     elseif type == :POLY
-        resample!(raw, resampledData, chansEEG, sRatio, oldLength)
+        resample!(raw, resampledData, chansEEG, sRatio, oldLength, nThreads)
     end
     return resampledData
 end
 
-function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, newLength)
+function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, newLength, nThreads)
     fftLength = sRatio < 1 ? oldLength+1 : newLength +1
 
-    nThr = Threads.nthreads()
-
-    inputBuffer = [zeros(Float32, oldLength*2) for i in 1:nThr]
-    fftBuffer = [zeros(ComplexF32, fftLength) for i in 1:nThr]
-    outputBuffer = [zeros(Float32, newLength*2) for i in 1:nThr]
+    inputBuffer = [zeros(Float32, oldLength*2) for i in 1:nThreads]
+    fftBuffer = [zeros(ComplexF32, fftLength) for i in 1:nThreads]
+    outputBuffer = [zeros(Float32, newLength*2) for i in 1:nThreads]
     
     @views inputBuffer[1][1:oldLength] .= raw.data[:, chansEEG[1]]
     @views inputBuffer[1][end:-1:oldLength+1] .= raw.data[:, chansEEG[1]]
@@ -35,12 +33,13 @@ function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, newLeng
     irfftPlan = plan_irfft(fftBuffer[1][1:newLength+1], newLength*2)
         
     @views dataSubarray = raw.data[:,chansEEG]
-    Threads.@threads for chan in axes(dataSubarray, 2)
-    #for chan in axes(dataSubarray, 2)
-        thrID = Threads.threadid()
-        #@info chan, thrID
-        resample_channel!(inputBuffer[thrID], fftBuffer[thrID], outputBuffer[thrID], 
-        raw, chan, resampledData, rfftPlan, irfftPlan, oldLength, newLength, sRatio)
+    Threads.@threads for (thrID, batch) in setup_workers(axes(dataSubarray, 2), nThreads)
+        for chan in batch
+        #for chan in axes(dataSubarray, 2)
+            @debug thrID, chan
+            resample_channel!(inputBuffer[thrID], fftBuffer[thrID], outputBuffer[thrID], 
+            raw, chan, resampledData, rfftPlan, irfftPlan, oldLength, newLength, sRatio)
+        end
     end
 end
 
@@ -58,11 +57,9 @@ function resample_channel!(inputBuffer, fftBuffer, outputBuffer, raw, chan, resa
     end
 end
 
-function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength)
-    nThr = Threads.nthreads()
-
+function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, nThreads)
     h = resample_filter(sRatio)
-    polyFIR = [FIRFilter(h, sRatio) for thr in 1:nThr]
+    polyFIR = [FIRFilter(h, sRatio) for thr in 1:nThreads]
     tDelta = timedelay(polyFIR[1])
 
     τ = timedelay(polyFIR[1])
@@ -77,14 +74,16 @@ function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength)
     reqInlen     = inputlength(polyFIR[1], outLen)
     reqZerosLen  = reqInlen - mirrorBuffer
     
-    inputBuffer  = [zeros(Float32, mirrorBuffer+reqZerosLen) for thr in 1:nThr]
-    outputBuffer = [zeros(Float32, Int(mirrorBuffer*sRatio)) for thr in 1:nThr]
+    inputBuffer  = [zeros(Float32, mirrorBuffer+reqZerosLen) for thr in 1:nThreads]
+    outputBuffer = [zeros(Float32, Int(mirrorBuffer*sRatio)) for thr in 1:nThreads]
     
-    Threads.@threads for chan in chansEEG
-        thrID = Threads.threadid()
-
-        resample_channel!(inputBuffer, outputBuffer, raw, resampledData, oldRate, oldLength, 
-        newRate, reqZerosLen, polyFIR, τ, chan, thrID)
+    @views dataSubarray = raw.data[:,chansEEG]
+    Threads.@threads for (thrID, batch) in setup_workers(axes(dataSubarray, 2), nThreads)
+        for chan in batch
+            @debug thrID, chan
+            resample_channel!(inputBuffer, outputBuffer, raw, resampledData, oldRate, oldLength, 
+            newRate, reqZerosLen, polyFIR, τ, chan, thrID)
+        end
     end
 end
 
