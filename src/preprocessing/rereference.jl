@@ -102,11 +102,11 @@ function set_reference!(raw::Raw, reference::Vector{<:Integer}; case="")
     if length(reference) == 0
         error("No channels found for the requested reference.")
     elseif length(reference) == 1
-        @views ref = raw.data[:,reference]
+        ref = raw.data[:,reference][:]
         case = [raw.chans.name[reference]]
     else
         # Compute the average
-        @views ref = mean(raw.data[:, reference], dims=2)
+        ref = mean(raw.data[:, reference], dims=2)
         # Get the names of the channels going into the reference
         if case == ""
             case = raw.chans.name[reference]
@@ -115,11 +115,34 @@ function set_reference!(raw::Raw, reference::Vector{<:Integer}; case="")
         end
     end
 
-    # Subtract the reference from the data
+    # Subtract the reference only from the EEG data
     channels = get_channels(raw, :EEG)
-    @views raw[:, channels] .-= ref
+    #@views raw[:, channels] .-= ref
+    rereference!(raw.data, ref, channels)
     # Vector of vectors is necessary even if we broadcast to inner vectors
     raw.chans.reference[channels] .= case
     
     return nothing
+end
+
+set_reference!(array::AbstractArray, reference) = set_reference!(array, get_channels(array, reference))
+
+function set_reference!(array::AbstractArray, reference::Vector{<:Integer})
+    if length(reference) == 0
+        error("No channels found for the requested reference.")
+    elseif length(reference) == 1
+        ref = array[:,reference][:]
+    else
+        # Compute the average
+        ref = mean(array[:, reference], dims=2)[:]
+    end
+    rereference!(array, ref, collect(1:size(array, 2)))
+end
+
+function rereference!(array::AbstractArray, reference::AbstractVector, channels)
+    if size(array, 1) != length(reference)
+        error("The number of rows in the array must match the length of the reference.")
+    else
+        @views array[:, channels] .-= reference
+    end
 end
