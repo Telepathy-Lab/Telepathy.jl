@@ -1,3 +1,9 @@
+function resample(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads)
+    newRaw = deepcopy(raw)
+    resample!(newRaw, newSrate, type=type, nThreads=nThreads)
+    return newRaw
+end
+
 function resample!(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads)
 
     # Pick only EEG data for resampling
@@ -32,8 +38,7 @@ function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, newLeng
     rfftPlan = plan_rfft(inputBuffer[1])
     irfftPlan = plan_irfft(fftBuffer[1][1:newLength+1], newLength*2)
         
-    @views dataSubarray = raw.data[:,chansEEG]
-    Threads.@threads for (thrID, batch) in setup_workers(axes(dataSubarray, 2), nThreads)
+    Threads.@threads for (thrID, batch) in setup_workers(chansEEG, nThreads)
         for chan in batch
         #for chan in axes(dataSubarray, 2)
             @debug thrID, chan
@@ -59,6 +64,7 @@ end
 
 function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, nThreads)
     h = resample_filter(sRatio)
+    @info nThreads
     polyFIR = [FIRFilter(h, sRatio) for thr in 1:nThreads]
     tDelta = timedelay(polyFIR[1])
 
@@ -77,8 +83,7 @@ function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, nThread
     inputBuffer  = [zeros(Float32, mirrorBuffer+reqZerosLen) for thr in 1:nThreads]
     outputBuffer = [zeros(Float32, Int(mirrorBuffer*sRatio)) for thr in 1:nThreads]
     
-    @views dataSubarray = raw.data[:,chansEEG]
-    Threads.@threads for (thrID, batch) in setup_workers(axes(dataSubarray, 2), nThreads)
+    Threads.@threads for (thrID, batch) in setup_workers(chansEEG, nThreads)
         for chan in batch
             @debug thrID, chan
             resample_channel!(inputBuffer, outputBuffer, raw, resampledData, oldRate, oldLength, 

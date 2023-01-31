@@ -46,7 +46,7 @@ include("preprocessing/rereference.jl")
 export get_reference, set_reference, set_reference!
 
 include("preprocessing/resample.jl")
-export resample!
+export resample, resample!
 
 include("utils/threading.jl")
 
