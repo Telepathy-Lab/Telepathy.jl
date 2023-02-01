@@ -1,6 +1,9 @@
-function resample(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads)
+# Extending the DSP function as we are already using it internally
+function DSP.Filters.resample(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads)
     newRaw = deepcopy(raw)
+    @info newSrate, size(newRaw.data)
     resample!(newRaw, newSrate, type=type, nThreads=nThreads)
+    @info newRaw.chans.srate[1] , size(newRaw.data)
     return newRaw
 end
 
@@ -13,16 +16,21 @@ function resample!(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads
     sRatio = newSrate / oldSrate
     oldLength = size(raw.data, 1)
     newLength = Int(oldLength*newSrate/oldSrate)
-
+    
     # Preallocate an array for resampled data
     resampledData = zeros(Float32, newLength, size(raw.data,2))
-
+    
     if type == :FFT
         resample!(raw, resampledData, chansEEG, sRatio, oldLength, newLength, nThreads)
     elseif type == :POLY
         resample!(raw, resampledData, chansEEG, sRatio, oldLength, nThreads)
     end
-    return resampledData
+    
+    raw.chans.srate[chansEEG] .= newSrate
+    raw.data = resampledData
+    raw.times = 0:(1/newSrate):(length(raw.data)/newSrate)
+    
+    return nothing
 end
 
 function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, newLength, nThreads)
@@ -64,7 +72,6 @@ end
 
 function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, nThreads)
     h = resample_filter(sRatio)
-    @info nThreads
     polyFIR = [FIRFilter(h, sRatio) for thr in 1:nThreads]
     tDelta = timedelay(polyFIR[1])
 
