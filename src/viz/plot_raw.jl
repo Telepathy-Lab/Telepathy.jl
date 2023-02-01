@@ -1,5 +1,3 @@
-Makie.ispressed(scene, op::Exclusively) = ispressed(events(scene), op)
-
 rawHotkeys = Dict(
     "stepBack" => Exclusively(Keyboard.left),
     "stepForw" => Exclusively(Keyboard.right),

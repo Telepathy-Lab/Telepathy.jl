@@ -70,6 +70,7 @@ function batch(collection, nBatch::Int; spread=true)
     return Iterators.enumerate(batches)
 end
 
+# TODO: We could get rid of collect if we used Floops.jl, but for now I want to stay with Base.
 function setup_workers(collection, nThreads; spread=true)
     if !options.threading
         nBatch = 1

@@ -3,7 +3,6 @@ module Telepathy
 using EEGIO
 using DelimitedFiles
 import UnicodePlots: scatterplot, scatterplot!
-#using Mmap
 using GLMakie
 #using Makie.GeometryBasics
 using Statistics
