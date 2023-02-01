@@ -1,5 +1,6 @@
 module Telepathy
 
+using Dates
 using EEGIO
 using DelimitedFiles
 import UnicodePlots: scatterplot, scatterplot!
@@ -48,8 +49,8 @@ include("preprocessing/resample.jl")
 export resample, resample!
 
 include("utils/threading.jl")
-
 include("utils/preferences.jl")
+include("utils/conversions.jl")
 
 options = Options()
 
