@@ -31,6 +31,11 @@ function read_from_bdf(file)
     chns = Channels([""], 0)
 
     open(file) do fid
+
+        filepath = splitdir(split(strip(fid.name, ['<','>']), ' ', limit=2)[2])
+        hdr.path = abspath(filepath[1])
+        hdr.filename = filepath[2]
+
         header = EEGIO.read_bdf_header(fid)
 
         hdr.participantID = header.subID

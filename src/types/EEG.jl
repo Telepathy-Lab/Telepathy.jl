@@ -25,13 +25,14 @@ Base.show(io::IO, ::Type{BVF}) = print(io, "BVF")
 """
 mutable struct Info{T <: FileType}
     filename::String
+    path::String
     participantID::String
     recordingID::String
     date::String
     history::Vector{String}
 end
 
-Info(filename) = Info{eval(Symbol(uppercase(filename[end-2:end])))}(filename, "", "", "", String[])
+Info(filename) = Info{eval(Symbol(uppercase(filename[end-2:end])))}(filename, "", "", "", "", String[])
 
 """
     Telepathy.Sensor
@@ -55,8 +56,10 @@ struct SIG <: Sensor end
 struct MISC <: Sensor end
 struct STIM <: Sensor end
 
-Base.show(io::IO, sensor::EEG) = print(io, :EEG)
-Base.show(io::IO, ::Type{EEG}) = print(io, :EEG)
+no_module(val) = split(string(val), ".")[2]
+
+Base.show(io::IO, sensor::T) where {T <: Sensor} = print(io, no_module(T))
+Base.show(io::IO, ::MIME"text/plain", ::Type{T}) where {T <: Sensor} = print(io, no_module(T))
 
 """
     Telepathy.Channels(name::Vector{String}, srate::Real)
@@ -155,3 +158,59 @@ Base.axes(raw::Raw) = axes(raw.data)
 Base.axes(raw::Raw, d) = axes(raw.data, d)
 Base.view(raw::Raw, indices...) = view(raw.data, get_data(raw, indices...)...)
 Base.maybeview(raw::Raw, indices...) = Base.maybeview(raw.data, get_data(raw, indices...)...)
+
+
+# Pretty printing structs
+Base.show(io::IO, info::Info{T}) where T = print(
+    io,
+    """Info{$T}
+    Path:               $(info.path)
+    Filename:           $(info.filename)
+    participant ID:     $(info.participantID)
+    recording ID:       $(info.recordingID)
+    date:               $(info.date)
+    """
+)
+
+function get_chn_types(chans)
+    chnTypes = ""
+    for type in unique(chans.type)
+        str = string(type)
+        chanMask = string.(chans.type) .== str
+        chanCount = count(chanMask)
+        chnTypes *= " "^(18-length(str))*str*":\t$(chanCount)"
+        chanNames = chanCount > 5 ? chans.name[chanMask][1:5] : chans.name[chanMask]
+        chnTypes *= chanCount > 5 ? "\t$(join(chanNames, ", "))... \n" : "\t$(join(chanNames, ", "))\n"
+    end
+    return chnTypes[1:end-1]
+end
+
+function get_chn_reference(chans)
+    if length(unique(length.(chans.reference))) > 1
+        return "Multiple references"
+    elseif isempty(chans.reference[1][1])
+        return "<None>"
+    else
+        return chans.reference[1]
+    end
+end
+
+Base.show(io::IO, chans::Channels) = print(
+    io,
+    """Channel information
+    Number of channels:\t$(length(chans.name))
+    $(get_chn_types(chans))
+    Locations:\t\t$(chans.location == EmptyLayout() ? "<None>" : chans.location)
+    Sampling rate:\t\t$(chans.srate[1])Hz
+    Reference:\t\t$(get_chn_reference(chans))
+    """
+)
+
+Base.show(io::IO, raw::Raw) = print(
+    io,
+    """Raw data
+    $(raw.info)
+    $(raw.chans)
+    Recording length:\t$(length(raw))
+    """
+)
