@@ -1,5 +1,7 @@
 module Telepathy
 
+# For development purposes
+
 using Dates
 using EEGIO
 using DelimitedFiles
@@ -51,6 +53,7 @@ export resample, resample!
 include("utils/threading.jl")
 include("utils/preferences.jl")
 include("utils/conversions.jl")
+include("utils/helpers.jl")
 
 options = Options()
 

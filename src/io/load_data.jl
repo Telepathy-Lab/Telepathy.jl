@@ -54,7 +54,7 @@ function read_from_bdf(file)
             names[i] = header.chanLabels[i]
             types[i] = parse_electrode_type(header.transducer[i])
             srate[i] = Int32(header.nSampRec[i] / header.recordDuration)
-            filters[i] = Dict("filt" => header.prefilt[i])
+            filters[i] = parse_filters(header.prefilt[i])
         end
         chns.name = names
         chns.type = types
@@ -83,6 +83,31 @@ function parse_electrode_type(transducer::String)
     else
         return MISC()
     end
+end
+
+function parse_filters(flt::String)
+    filters = Dict{String, Number}()
+    flt_splt = split(flt, ";")
+    for f in ["HP", "LP"]
+        filt = occursin.(f, flt_splt)
+        if any(filt)
+            filt = flt_splt[filt]
+            filt = split(filt[1], " ", keepempty=false)
+            filt = filt[2]
+            if filt == "DC"
+                val = 0
+            else
+                val = parse(Int64, filt)
+            end
+
+            if f == "HP"
+                push!(filters, "Highpass" => val)
+            else
+                push!(filters, "Lowpass" => val)
+            end
+        end
+    end
+    return filters
 end
 
 function parse_status!(raw::Raw{BDF})

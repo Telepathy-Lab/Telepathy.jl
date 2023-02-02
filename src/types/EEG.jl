@@ -38,10 +38,12 @@ Info(filename) = Info{eval(Symbol(uppercase(filename[end-2:end])))}(filename, ""
     Telepathy.Sensor
 
     Abstract type grouping different kinds of possible sensors in a recording.
-    Currently, Telepathy recognizes the following: EEG, EOG, EMG, ECG, SIG, MISC, and STIM.
+    Currently, Telepathy recognizes the following: EEG, EOG, EMG, ECG, REF, SIG, MISC,
+    and STIM.
 
-    While most is self-explanatory, it is worth noting that SIG is a generic type for all
-    sensors that should be treated as biological signals. This will assume they are periodic
+    While most is self-explanatory, it is worth noting that REF is reserved for electrodes
+    serving as reference channels, e.g. mastoids, SIG is a generic type for all sensors
+    that should be treated as biological signals. This will assume they are periodic
     in nature and will be processed accordingly (similarly to e.g. EEG).
     MISC on the other hand is a generic type for non-periodic signals. Channels with this
     type will be treated as digital (similarly to STIM).
@@ -52,6 +54,7 @@ struct EEG <: Sensor end
 struct EOG <: Sensor end
 struct EMG <: Sensor end
 struct ECG <: Sensor end
+struct REF <: Sensor end
 struct SIG <: Sensor end
 struct MISC <: Sensor end
 struct STIM <: Sensor end
@@ -161,16 +164,20 @@ Base.maybeview(raw::Raw, indices...) = Base.maybeview(raw.data, get_data(raw, in
 
 
 # Pretty printing structs
-Base.show(io::IO, info::Info{T}) where T = print(
+function Base.show(io::IO, info::Info{T}) where T 
+    printstyled(io, "Info{$T}\n", color=41)
+    print(
     io,
-    """Info{$T}
-    Path:               $(info.path)
-    Filename:           $(info.filename)
-    participant ID:     $(info.participantID)
-    recording ID:       $(info.recordingID)
-    date:               $(info.date)
     """
-)
+    Path .................. $(info.path)
+    Filename .............. $(info.filename)
+    participant ID ........ $(info.participantID)
+    recording ID .......... $(info.recordingID)
+    date .................. $(info.date)
+    """)
+    printstyled(io, "$("-"^23)", color=41)
+
+end
 
 function get_chn_types(chans)
     chnTypes = ""
@@ -178,7 +185,7 @@ function get_chn_types(chans)
         str = string(type)
         chanMask = string.(chans.type) .== str
         chanCount = count(chanMask)
-        chnTypes *= " "^(18-length(str))*str*":\t$(chanCount)"
+        chnTypes *= " "^(18-length(str))*str*" .... $(chanCount)"
         chanNames = chanCount > 5 ? chans.name[chanMask][1:5] : chans.name[chanMask]
         chnTypes *= chanCount > 5 ? "\t$(join(chanNames, ", "))... \n" : "\t$(join(chanNames, ", "))\n"
     end
@@ -195,22 +202,34 @@ function get_chn_reference(chans)
     end
 end
 
-Base.show(io::IO, chans::Channels) = print(
+function Base.show(io::IO, chans::Channels) 
+    printstyled(io, "Channel information\n", color=41)
+    print(
     io,
-    """Channel information
-    Number of channels:\t$(length(chans.name))
+    """
+    Number of channels .... $(length(chans.name))
     $(get_chn_types(chans))
-    Locations:\t\t$(chans.location == EmptyLayout() ? "<None>" : chans.location)
-    Sampling rate:\t\t$(chans.srate[1])Hz
-    Reference:\t\t$(get_chn_reference(chans))
-    """
-)
+    Locations ............. $(chans.location == EmptyLayout() ? "<None>" : chans.location)
+    Sampling rate ......... $(chans.srate[1]) Hz
+    Reference ............. $(get_chn_reference(chans))
+    Filtering .............
+               Highpass ... $(haskey(chans.filters[1], "Highpass") ? "$(chans.filters[1]["Highpass"]) Hz" : "<None>")
+               Lowpass .... $(haskey(chans.filters[1], "Lowpass") ? "$(chans.filters[1]["Lowpass"]) Hz" : "<None>")
+               Notch ...... $(haskey(chans.filters[1], "Notch") ? "$(chans.filters[1]["Notch"]) Hz" : "<None>")
+    """)
+    printstyled(io, "$("-"^23)", color=41)
+end
 
-Base.show(io::IO, raw::Raw) = print(
+function Base.show(io::IO, raw::Raw)
+    printstyled(io, "\nRAW DATA\n", bold=true, color=38)
+    show(io, raw.info)
+    print(io, "\n\n")
+    show(io, raw.chans)
+    print(io, "\n\n")
+    print(
     io,
-    """Raw data
-    $(raw.info)
-    $(raw.chans)
-    Recording length:\t$(length(raw))
     """
-)
+    Duration .............. $(samples2time(size(raw.data,1), Float64(raw.chans.srate[1])))
+    """
+    )
+end
