@@ -3,12 +3,14 @@ abstract type Layout end
 struct EmptyLayout <: Layout end
 
 mutable struct Spherical <: Layout
+    name::String
     label::Vector{String}
     theta::Vector{Float64}
     phi::Vector{Float64}
 end
 
 mutable struct Cartesian <: Layout
+    name::String
     label::Vector{String}
     x::Vector{Float64}
     y::Vector{Float64}
@@ -16,18 +18,19 @@ mutable struct Cartesian <: Layout
 end
 
 mutable struct Geographic <: Layout
+    name::String
     label::Vector{String}
     theta::Vector{Float64}
     phi::Vector{Float64}
 end
 
-Layout(label::Vector{String}, x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64}) = Cartesian(label, x, y, z)
+Layout(name::String, label::Vector{String}, x::Vector{Float64}, y::Vector{Float64}, z::Vector{Float64}) = Cartesian(name, label, x, y, z)
 
-function Layout(label::Vector{String}, theta::Vector{Float64}, phi::Vector{Float64})
+function Layout(name::String, label::Vector{String}, theta::Vector{Float64}, phi::Vector{Float64})
     if findfirst(x -> x < -120, theta) === nothing
-        Spherical(label, theta, phi)
+        Spherical(name, label, theta, phi)
     else
-        Geographic(label, theta, phi)
+        Geographic(name, label, theta, phi)
     end
 end
 
@@ -67,7 +70,7 @@ function Spherical(layout::Cartesian)
             end
         end
     end
-    Spherical(layout.label, theta, phi)
+    Spherical(layout.name, layout.label, theta, phi)
 end
 
 function Spherical(layout::Geographic)
@@ -83,7 +86,7 @@ function Spherical(layout::Geographic)
             layout.theta[i] <= 0 ? phi[i] = 90 + layout.theta[i] : phi[i] = layout.theta[i] - 90
         end
     end
-    Spherical(layout.label, theta, phi)
+    Spherical(layout.name, layout.label, theta, phi)
 end
 
 function Cartesian(layout::Cartesian)
@@ -109,7 +112,7 @@ function Cartesian(layout::Spherical)
             z[i] = round(r*cos(deg2rad(layout.theta[i])))
         end
     end
-    Cartesian(layout.label, x, y, z)
+    Cartesian(layout.name, layout.label, x, y, z)
 end
 
 function Cartesian(layout::Geographic)
@@ -134,7 +137,7 @@ function Geographic(layout::Spherical)
             layout.theta[i] < 0 ? phi[i] = 90 + layout.theta[i] : phi[i] = 90 - layout.theta[i]
         end
     end
-    Geographic(layout.label, theta, phi)
+    Geographic(layout.name, layout.label, theta, phi)
 end
 
 function Geographic(layout::Cartesian)

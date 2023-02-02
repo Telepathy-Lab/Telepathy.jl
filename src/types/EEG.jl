@@ -192,6 +192,14 @@ function get_chn_types(chans)
     return chnTypes[1:end-1]
 end
 
+function get_chn_locations(chans)
+    if chans.location == EmptyLayout()
+        return "<None>"
+    else
+        return  "$(valid_locations(chans.location))\t$(chans.location.name)"
+    end
+end
+
 function get_chn_reference(chans)
     if length(unique(length.(chans.reference))) > 1
         return "Multiple references"
@@ -209,7 +217,7 @@ function Base.show(io::IO, chans::Channels)
     """
     Number of channels .... $(length(chans.name))
     $(get_chn_types(chans))
-    Locations ............. $(chans.location == EmptyLayout() ? "<None>" : chans.location)
+    Locations ............. $(get_chn_locations(chans))
     Sampling rate ......... $(chans.srate[1]) Hz
     Reference ............. $(get_chn_reference(chans))
     Filtering .............

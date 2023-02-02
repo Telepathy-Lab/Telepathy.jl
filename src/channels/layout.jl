@@ -1,7 +1,7 @@
-set_layout!(raw::Raw, layout::Symbol) = set_layout!(raw::Raw, joinpath(@__DIR__, "locations", "$(string(layout)).lay"))
+set_layout!(raw::Raw, layout::Symbol) = set_layout!(raw::Raw, joinpath(@__DIR__, "locations", "$(string(layout)).lay"), layout)
 
-function set_layout!(raw::Raw, file::String)
-    layout = read_layout(file)
+function set_layout!(raw::Raw, file::String, laySym::Symbol)
+    layout = read_layout(file, laySym)
 
     matchCounter = 0
     missList = Vector{String}()
@@ -19,7 +19,7 @@ function set_layout!(raw::Raw, file::String)
         end
     end
 
-    raw.chans.location = Layout(raw.chans.name, layoutTemp[:,1], layoutTemp[:,2])
+    raw.chans.location = Layout(string(laySym), raw.chans.name, layoutTemp[:,1], layoutTemp[:,2])
 
     if !isempty(missList)
         missed = "No location data for these channels $missList"
@@ -32,13 +32,13 @@ function set_layout!(raw::Raw, file::String)
     """
 end
 
-read_layout(layout::Symbol) = read_layout(joinpath(@__DIR__, "locations", "$(string(layout)).lay"))
+read_layout(layout::Symbol) = read_layout(joinpath(@__DIR__, "locations", "$(string(layout)).lay"), layout)
 
-function read_layout(file::String)
+function read_layout(file::String, layout::Symbol)
     if isfile(file)
         locs, header = readdlm(file, header=true)
         locations = Dict(header[i] => locs[:,i] for i in eachindex(header))
-        return Spherical(locations["label"], locations["theta"], locations["phi"])
+        return Spherical(string(layout), locations["label"], locations["theta"], locations["phi"])
     else
         error("Can't find the file $file. Please check the if the path is correct.")
     end
@@ -47,3 +47,7 @@ end
 function convert_layout!(coordType::Symbol, raw::Raw)
     raw.chans.location = eval(Expr(:call, coordType, raw.chans.location))
 end
+
+valid_locations(layout::Spherical) = count(!isnan, layout.theta)
+valid_locations(layout::Cartesian) = count(!isnan, layout.x)
+valid_locations(layout::Geographic) = count(!isnan, layout.theta)
