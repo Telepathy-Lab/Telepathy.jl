@@ -2,6 +2,7 @@ module Telepathy
 
 # For development purposes
 
+import Pkg
 using Dates
 using EEGIO
 using DelimitedFiles
