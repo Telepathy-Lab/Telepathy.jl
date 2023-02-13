@@ -71,7 +71,7 @@ function info()
     printstyled("Memory", color=41)
     println(" ................ $(round(Sys.total_memory() / 2^30, digits=2)) GB")
     println("")
-    
+    printstyled("Packages\n", color=38)
     print_pkg_versions(["Telepathy", "EEGIO"])
     println("")
     print_pkg_versions(["DSP", "FFTW"])
