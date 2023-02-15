@@ -41,6 +41,8 @@ include("viz/plot_layout.jl")
 export plot_layout
 
 include("viz/plot_raw.jl")
+include("viz/plot_filter.jl")
+export plot_filter
 
 include("preprocessing/filter.jl")
 export filter_data!
