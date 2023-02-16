@@ -1,3 +1,47 @@
+function estimate_transition(highPass, lowPass, srate)
+    if highPass != 0
+        if highPass < 2
+            hightrans = highPass
+        else
+            hightrans = max(2, highPass/4)
+        end
+    else
+        # Highest possible value just for the sake of selection that comes next
+        hightrans = srate
+    end
+
+    if lowPass != 0
+        if lowPass * 1.25 > srate
+            lowtrans = srate - lowPass
+        else
+            lowtrans = max(2, lowPass/4)
+        end
+    else
+        # Highest possible value just for the sake of selection that comes next
+        lowtrans = srate
+    end        
+
+    return min(hightrans, lowtrans)
+end
+
+function choose_type(highPass::Integer, lowPass::Integer, srate::Integer)
+    if (lowPass != 0) & (highPass != 0)
+        if lowPass > highPass
+            fType = Bandpass(highPass, lowPass, fs=srate)
+        elseif highPass > lowPass
+            fType = Bandstop(lowPass, highPass, fs=srate)
+        else
+            @error "Highpass and lowpass filters cannot have the same value."
+        end
+    elseif highPass != 0
+        fType = Highpass(highPass, fs=srate)
+    elseif lowPass != 0
+        fType = Lowpass(lowPass, fs=srate)
+    else
+        @info "Neither highpass or lowpass value provided. Doing nothing!"
+    end
+end
+
 mutable struct FilterDetails
     transition::Float64
     pbRipple::Float64
@@ -29,14 +73,15 @@ function filterord(window::Symbol, transitionWidth::Number)
     return winLength % 2 == 0 ? winLength + 1 : winLength
 end
 
-function estimate_window(window::Symbol, transitionWidth::Number, attenuation::Number=60)
+function estimate_window(window::Symbol, transitionWidth::Number, attenuation::Number=53) 
     if window == :kaiser
+        # Kaiserord expects transition relative to Nyquist frequency
         numTaps = kaiserord(transitionWidth*2, attenuation)
         return FIRWindow(kaiser(numTaps...))
     elseif window == :remez
         error("Remez window not supported yet.")
     else
-        if attenuation != 60
+        if attenuation != 53
             error("Attenuation value only supported for Kaiser and Remez methods.")
         end
         numTaps = filterord(window, transitionWidth)
@@ -44,45 +89,38 @@ function estimate_window(window::Symbol, transitionWidth::Number, attenuation::N
     end
 end
 
-function filter_data(raw::Raw; lowPass=0, highPass=0, window=:kaiser)
+function filter_data(raw::Raw; highPass=0, lowPass=0, window=:kaiser)
     output = deepcopy(raw)
-    output.chans, output.data = filter_data!(raw.data. raw.chans; lowPass=lowPass, highPass=highPass, window=window)
+    output.chans, output.data = filter_data!(raw.data. raw.chans; highPass=highPass, lowPass=lowPass, window=window)
     return output
 end
 
-function filter_data!(raw::Raw; lowPass=0, highPass=0, window=:kaiser)
-    filter_data!(raw.data. raw.chans; lowPass=lowPass, highPass=highPass, window=window)
+function filter_data!(raw::Raw; highPass=0, lowPass=0, window=:kaiser)
+    filter_data!(raw.data. raw.chans; highPass=highPass, lowPass=lowPass, window=window)
 end
 
-function filter_data!(data::Matrix, chans::Channels; lowPass=0, highPass=0, window=:kaiser)
-
+function filter_data!(data::Matrix, chans::Channels; highPass=0, lowPass=0, window=:kaiser, transition=:auto)
     srate = chans.srate[1]
-    fType = choose_type(lowPass, highPass, srate)
-    winType = estimate_window(window, srate)
 
-    digFilter = digitalfilter(fType, winType)
+    if transition == :auto
+        transitionWidth = estimate_transition(highPass, lowPass, srate)
+    elseif (highPass != 0) && (highPass - transition < 0)
+        error("Transition width cannot be larger than highpass value.")
+    elseif (lowPass != 0) && (lowPass + transition > srate/2)
+        error("Transition width cannot go beyond Nyquist frequency of $(srate/2)Hz.")
+    else
+        transitionWidth = transition
+    end
+
+    
+    fType = choose_type(highPass, lowPass, srate)
+    win = estimate_window(window, transitionWidth)
+
+    digFilter = digitalfilter(fType, win)
     @info length(digFilter)
 
     apply_filter!(data, digFilter)
-    update_filter_info!(chans, lowPass, highPass)
-end
-
-function choose_type(lowPass::Integer, highPass::Integer, srate::Integer)
-    if (lowPass != 0) & (highPass != 0)
-        if lowPass > highPass
-            fType = Bandpass(highPass, lowPass, fs=srate)
-        elseif highPass > lowPass
-            fType = Bandstop(lowPass, highPass, fs=srate)
-        else
-            @error "Highpass and lowpass filters cannot have the same value."
-        end
-    elseif lowPass != 0
-        fType = Lowpass(lowPass, fs=srate)
-    elseif highPass != 0
-        fType = Highpass(highPass, fs=srate)
-    else
-        @info "Neither highpass or lowpass value provided. Doing nothing!"
-    end
+    update_filter_info!(chans, highPass, lowPass)
 end
 
 function apply_filter!(data::Matrix, digFilter)
@@ -91,10 +129,10 @@ function apply_filter!(data::Matrix, digFilter)
     end
 end
 
-function update_filter_info!(chans::Channels, lowPass::Integer, highPass::Integer)
+function update_filter_info!(chans::Channels, highPass::Integer, lowPass::Integer)
     for chan in chans
-        chan.filters["lowPass"] = lowPass
         chan.filters["highPass"] = highPass
+        chan.filters["lowPass"] = lowPass
     end
 end
 
