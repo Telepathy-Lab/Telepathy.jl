@@ -40,6 +40,7 @@ function choose_type(highPass::Integer, lowPass::Integer, srate::Integer)
     else
         @info "Neither highpass or lowpass value provided. Doing nothing!"
     end
+    return fType
 end
 
 mutable struct FilterDetails
@@ -70,23 +71,97 @@ function filterord(window::Symbol, transitionWidth::Number)
     end
 
     winLength = ceil(Int, filterDetails[window].transition / transitionWidth)
-    return winLength % 2 == 0 ? winLength + 1 : winLength
+    # Make sure the number of taps is odd
+    return winLength |= 1
 end
 
-function estimate_window(window::Symbol, transitionWidth::Number, attenuation::Number=53) 
+function estimate_window(window::Symbol, srate::Number, transitionWidth::Number, attenuation::Number=53) 
     if window == :kaiser
         # Kaiserord expects transition relative to Nyquist frequency
-        numTaps = kaiserord(transitionWidth*2, attenuation)
-        return FIRWindow(kaiser(numTaps...))
-    elseif window == :remez
-        error("Remez window not supported yet.")
+        numTaps, alpha = kaiserord((transitionWidth*2)/srate, attenuation)
+        # Make sure the number of taps is odd
+        numTaps |= 1
+        @info numTaps, alpha, transitionWidth, attenuation
+        return FIRWindow(kaiser(numTaps, alpha))        
     else
         if attenuation != 53
             error("Attenuation value only supported for Kaiser and Remez methods.")
         end
-        numTaps = filterord(window, transitionWidth)
+        numTaps = filterord(window, transitionWidth/srate)
         return FIRWindow(eval(:($window($numTaps))))
     end
+end
+
+function design_filter(highPass, lowPass, srate, window, transitionWidth, passErr, stopErr)
+    fType = choose_type(highPass, lowPass, srate)
+    
+    if window == :remez
+        # Convert from dB to linear
+        passErr = (1 - 10^(-passErr/20))
+        stopErr = 10^(-stopErr/20)
+
+        if length(transitionWidth) == 2
+            @warn "Different transition widths might lead to overshooting and a faulty filter."
+            minTrans = min(transitionWidth...)
+            tVal = [transitionWidth[1]/2, transitionWidth[2]/2]
+        else
+            minTrans = transitionWidth
+            tVal = [transitionWidth/2, transitionWidth/2]
+        end
+
+        # Estimate the order of the filter
+        numTaps = remezord(1/srate, (minTrans+1)/srate, passErr, stopErr)
+        # Make sure the number of taps is odd
+        numTaps |= 1
+        
+        if typeof(fType) == Highpass{Float64}
+            freqVec = [0, highPass - tVal[1], highPass + tVal[1], srate/2]
+            gainVec = [0, 1]
+            dFilter = remez(numTaps, freqVec, gainVec, weight=[1/stopErr, 1/passErr], Hz=srate)
+        elseif typeof(fType) == Lowpass{Float64}
+            freqVec = [0, lowPass - tVal[1], lowPass + tVal[1], srate/2]
+            gainVec = [1, 0]
+            dFilter = remez(numTaps, freqVec, gainVec, weight=[1/passErr, 1/stopErr], Hz=srate)
+        elseif typeof(fType) == Bandpass{Float64}
+            freqVec = [0, highPass - tVal[1], highPass + tVal[1], lowPass - tVal[2], lowPass + tVal[2], srate/2]
+            gainVec = [0, 1, 0]
+            dFilter = remez(numTaps, freqVec, gainVec, weight=[1/stopErr, 1/passErr, 1/stopErr], Hz=srate)
+        elseif typeof(fType) == Bandstop{Float64}
+            freqVec = [0, lowPass - tVal[1], lowPass + tVal[1], highPass - tVal[2], highPass + tVal[2], srate/2]
+            gainVec = [1, 0, 1]
+            dFilter = remez(numTaps, freqVec, gainVec, weight=[1/passErr, 1/stopErr, 1/passErr], Hz=srate)
+        end
+    else
+        if length(transitionWidth) == 2
+            if typeof(fType) == Bandpass{Float64}
+                seq = [Lowpass, Lowpass]
+            elseif typeof(fType) == Bandstop{Float64}
+                seq = [Lowpass, Highpass]
+            else
+                error("Transition width must be a single value for highpass or lowpass filters.")
+            end
+
+            wins = [estimate_window(window, srate, x, stopErr) for x in transitionWidth]
+            fLength = length.([wins[1].window, wins[2].window])
+            dFilter = zeros(max(fLength...))
+            
+            diff = div(abs(fLength[1] - fLength[2]), 2)
+            fLength[1] > fLength[2] ? offset = [0, diff] : offset = [diff, 0]
+
+            @info fLength, diff
+
+            # lower bound
+            lType = seq[1](fType.w1, fs=2)
+            dFilter[1+offset[1]:end-offset[1]] += digitalfilter(lType, wins[1])
+            # upper bound
+            uType = seq[2](fType.w2, fs=2)
+            dFilter[1+offset[2]:end-offset[2]] -= digitalfilter(uType, wins[2])
+        else
+            win = estimate_window(window, srate, transitionWidth, stopErr)
+            dFilter = digitalfilter(fType, win)
+        end
+    end
+    return dFilter
 end
 
 function filter_data(raw::Raw; highPass=0, lowPass=0, window=:kaiser)
@@ -99,7 +174,7 @@ function filter_data!(raw::Raw; highPass=0, lowPass=0, window=:kaiser)
     filter_data!(raw.data. raw.chans; highPass=highPass, lowPass=lowPass, window=window)
 end
 
-function filter_data!(data::Matrix, chans::Channels; highPass=0, lowPass=0, window=:kaiser, transition=:auto)
+function filter_data!(data::Matrix, chans::Channels; highPass=0, lowPass=0, window=:kaiser, transition=:auto, passErr=:auto, stopErr=:auto)
     srate = chans.srate[1]
 
     if transition == :auto
@@ -111,12 +186,21 @@ function filter_data!(data::Matrix, chans::Channels; highPass=0, lowPass=0, wind
     else
         transitionWidth = transition
     end
-
     
-    fType = choose_type(highPass, lowPass, srate)
-    win = estimate_window(window, transitionWidth)
+    # Set default values close to Hamming window parameters in dB
+    if passErr == :auto
+        passErr = 0.02
+    elseif !(typeof(passErr) <: Number)
+        error("Passband ripple must be a number.")
+    end
 
-    digFilter = digitalfilter(fType, win)
+    if stopErr == :auto
+        stopErr = 53
+    elseif !(typeof(stopErr) <: Number)
+        error("Stopband attenuation must be a number.")
+    end
+
+    digFilter = design_filter(highPass, lowPass, srate, window, transitionWidth, passErr, stopErr)
     @info length(digFilter)
 
     apply_filter!(data, digFilter)
