@@ -14,8 +14,14 @@ get_channels(data::Raw, chanRange::AbstractVector{<:Integer}) = intersect(chanRa
 # Selection based on string channel names
 # Selecting the first element make the slicing return a Vector rather than a Matrix
 function get_channels(data::Raw, name::String)
-    return get_channels(data, [name])[1]
+    idx = get_channels(data, [name])
+    if isempty(idx)
+        error("Channel $name not found in data.")
+    else
+        return idx[1]
+    end
 end
+
 function get_channels(data, names::Vector{String})
     return findall(x -> x in names, data.chans.name)
 end
@@ -68,3 +74,5 @@ function set_type!(data, chans, type::Sensor)
     @info "Channels $(data.chans.name[chanIDs]) changed to type $type"
 end
 
+# TODO: Needs to change when we add support for multiple sampling rates or unify reads
+get_srate(raw::Raw) = raw.chans.srate[1]

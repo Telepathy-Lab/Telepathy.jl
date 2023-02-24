@@ -58,21 +58,8 @@ include("utils/preferences.jl")
 include("utils/conversions.jl")
 include("utils/helpers.jl")
 
+# TODO: Handle options with Preferences.jl
 options = Options()
 
-# include("io/read_bdf.jl")
-# export read_bdf, read_header
-# include("io/ec_chan.jl")
-# export set_montage, bdf_chans, modify_by_reference
-# include("io/recognize_events.jl")
-# export find_events, count_events, scatter_events, remove_channels
-# include("io/bdf_resample.jl")
-# export bdf_resample
-# include("io/filters.jl")
-# export notch_filter, highpass_filter, lowpass_filter, apply_lowpass_filter, apply_highpass_filter, apply_notch_filter
-# include("viz/plot.jl")
-# export plot
-# include("viz/plotmontage.jl")
-# export plotmontage
 
 end # module

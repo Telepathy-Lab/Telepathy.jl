@@ -70,6 +70,7 @@ function resample_channel!(inputBuffer, fftBuffer, outputBuffer, raw, chan, resa
     end
 end
 
+# TODO: Mention this recycles DSP.jl code
 function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, nThreads)
     h = resample_filter(sRatio)
     polyFIR = [FIRFilter(h, sRatio) for thr in 1:nThreads]
