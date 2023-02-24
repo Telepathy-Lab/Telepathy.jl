@@ -45,7 +45,7 @@ include("viz/plot_filter.jl")
 export plot_filter
 
 include("preprocessing/filter.jl")
-export filter_data!
+export filter_data, filter_data!, design_filter
 
 include("preprocessing/rereference.jl")
 export get_reference, set_reference, set_reference!
