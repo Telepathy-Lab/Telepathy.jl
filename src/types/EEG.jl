@@ -241,3 +241,27 @@ function Base.show(io::IO, raw::Raw)
     """
     )
 end
+
+
+mutable struct Epochs
+    info::Info
+    chans::Channels
+    data::Array
+    times::StepRangeLen
+    events::Array
+end
+
+Epochs(raw::Raw; start=-0.2, stop=0.8) = Epochs(
+    raw.info,
+    raw.chans,
+    create_epochs(raw, start, stop),
+    raw.times,
+    raw.events
+)
+
+function create_epochs(raw::Raw, start, stop)
+    nEpochs = size(raw.events, 1)
+    ranges = [get_times(raw, start, stop, anchor=raw.events[i,1]) for i in 1:nEpochs]
+
+    return nEpochs, ranges
+end

@@ -41,13 +41,24 @@ end
 get_channels(raw::Raw, channels::Colon) = Colon()
 
 # TODO: Add info in docs that using floats needs to specify the step fine enough to get the desired decimal places
-get_times(raw::Raw, times::AbstractFloat) = times:times
-function get_times(raw::Raw, times::AbstractRange)
-    start = round(Int64, times[begin]*raw.chans.srate[begin] + 1)
-    finish = round(Int64, times[end]*raw.chans.srate[begin])
+get_times(raw::Raw, times::AbstractFloat) = get_times(raw, times-1:times)
+
+function get_times(raw::Raw, times::AbstractRange; anchor=0)
+    if typeof(anchor) <: AbstractFloat
+        anchor = round(Int64, anchor*get_srate(raw))
+    elseif !(typeof(anchor) <: Integer)
+        error("Anchor must be an integer or float.")
+    end
+    start = round(Int64, times[begin]*get_srate(raw) + 1) + anchor
+    finish = round(Int64, times[end]*get_srate(raw)) + anchor
+    # Check if time range is within bounds of data
+    (start < 0 || finish > size(raw.data,1)) && error("Time range out of bounds.")
     return range(start, finish)
 end
 get_times(raw::Raw, times::Colon) = Colon()
+
+# Convert to range to not loose precision
+get_times(raw::Raw, start::AbstractFloat, stop::AbstractFloat; kwargs...) = get_times(raw, start:(stop-start):stop; kwargs...)
 
 # Separate type unions for times and channel selectors to check for input order in get_data
 rowTypes = Union{AbstractFloat, AbstractRange, Colon}
