@@ -4,7 +4,6 @@
 function load_data(file::String)
     println("Loading data from $file")
     format = recognize_format(file)
-    println("Calling subroutine to load the file type.")
     return format(file)
 end
 
@@ -71,7 +70,7 @@ function read_from_bdf(file)
             "highTrigger" => UInt8[0],
             "status" => UInt8[0],
         )
-        return Raw(hdr, chns, data, times, Array{Int64}[], status)
+        return Raw(hdr, chns, data, times, Int64[], status)
     end
 end
 

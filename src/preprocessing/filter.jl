@@ -239,7 +239,7 @@ function design_filter(highPass, lowPass, srate, window, transition, passErr, st
 end
 
 
-function update_filter_info!(raw::Raw, chans::Vector, highPass::Integer, lowPass::Integer)
+function update_filter_info!(raw::Raw, chans::Vector, highPass::Number, lowPass::Number)
     for chan in chans
         raw.chans.filters[chan]["Highpass"] = highPass
         raw.chans.filters[chan]["Lowpass"] = lowPass
