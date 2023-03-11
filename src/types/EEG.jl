@@ -91,14 +91,14 @@ mutable struct Channels
     name::Vector{String}
     type::Vector{Sensor}
     location::Layout
-    srate::Vector{Real}
+    srate::Vector{Float64}
     filters::Vector{Dict}
     reference::Vector{Vector{String}}
 end
 
 Channels(name, srate) = Channels(name, fill(EEG(), length(name)), EmptyLayout(), srate, Dict[], String[])
-Channels(name, srate::Real) = Channels(name, fill(EEG(), length(name)), EmptyLayout(), 
-                                fill(srate, length(name)), Dict[], String[])
+Channels(name, srate::Number) = Channels(name, fill(EEG(), length(name)), EmptyLayout(), 
+                                fill(convert(Float64,srate), length(name)), Dict[], String[])
 
 """
     Telepathy.Recording
@@ -130,7 +130,7 @@ mutable struct Raw{T} <: Recording where T
     chans::Channels
     data::Array
     times::StepRangeLen
-    events::Array
+    events::Array{Int64}
     status::Dict
 end
 
@@ -139,7 +139,7 @@ Raw(filename::String, name, srate, data) = Raw(
     Channels(name, srate),
     data,
     0:(1/srate):(length(data)/srate),
-    Array[], Dict()
+    Int64[], Dict()
 )
 
 # Overloading some functions from Base to make Raw more workable
@@ -249,6 +249,7 @@ mutable struct Epochs
     data::Array
     times::StepRangeLen
     events::Array
+    bads::Vector{Bool}
 end
 
 Epochs(raw::Raw; start=-0.2, stop=0.8) = Epochs(
@@ -256,12 +257,41 @@ Epochs(raw::Raw; start=-0.2, stop=0.8) = Epochs(
     raw.chans,
     create_epochs(raw, start, stop),
     raw.times,
-    raw.events
+    raw.events,
+    Bool[]
 )
 
-function create_epochs(raw::Raw, start, stop)
-    nEpochs = size(raw.events, 1)
-    ranges = [get_times(raw, start, stop, anchor=raw.events[i,1]) for i in 1:nEpochs]
+function create_epochs(epochs::Array, data::Array, ranges::Vector{UnitRange{Int}})
+    for (idx, rang) in enumerate(ranges)
+        @views epochs[:,:,idx] = data[rang, :]
+    end
+end
 
-    return nEpochs, ranges
+function create_epochs(raw::Raw, start::Number, stop::Number)
+    nEpochs = size(raw.events, 1)
+    ranges = Vector{UnitRange{Int}}(undef, nEpochs)
+    for i in 1:nEpochs
+        @views ranges[i] = get_times(raw, start, stop, anchor=raw.events[i,1])
+    end
+    
+    epochs = Array{typeof(raw.data[1]),3}(undef, length(ranges[1]), size(raw.data, 2), nEpochs)
+    create_epochs(epochs, raw.data, ranges)
+
+    return epochs
+end
+
+function Base.show(io::IO, epochs::Epochs)
+    printstyled(io, "\nEPOCHS\n", bold=true, color=38)
+    show(io, epochs.info)
+    print(io, "\n\n")
+    show(io, epochs.chans)
+    print(io, "\n\n")
+    print(
+    io,
+    """
+    Epochs ................ $(size(epochs.data, 3))
+                   Bads ... $(length(epochs.bads))
+               Duration ... $(samples2time(size(epochs.data,1), Float64(epochs.chans.srate[1])))
+    """
+    )
 end

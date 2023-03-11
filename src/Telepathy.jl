@@ -23,7 +23,7 @@ FFTW.set_num_threads(1)
 
 include("types/components.jl")
 include("types/EEG.jl")
-export Raw
+export Raw, Epochs
 
 include("io/load_data.jl")
 export load_data, parse_status!
