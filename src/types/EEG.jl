@@ -132,6 +132,7 @@ mutable struct Raw{T} <: Recording where T
     times::StepRangeLen
     events::Array{Int64}
     status::Dict
+    bads::Vector{UnitRange{Int64}}
 end
 
 Raw(filename::String, name, srate, data) = Raw(
@@ -139,7 +140,7 @@ Raw(filename::String, name, srate, data) = Raw(
     Channels(name, srate),
     data,
     0:(1/srate):(length(data)/srate),
-    Int64[], Dict()
+    Int64[], Dict(), UnitRange{Int64}[]
 )
 
 # Overloading some functions from Base to make Raw more workable
@@ -210,6 +211,14 @@ function get_chn_reference(chans)
     end
 end
 
+function get_bads_time(raw::Raw)
+    if isempty(raw.bads)
+        return 0
+    else
+        return sum(length.(raw.bads))
+    end
+end
+
 function Base.show(io::IO, chans::Channels) 
     printstyled(io, "Channel information\n", color=41)
     print(
@@ -238,6 +247,7 @@ function Base.show(io::IO, raw::Raw)
     io,
     """
     Duration .............. $(samples2time(size(raw.data,1), Float64(raw.chans.srate[1])))
+           Bad segments ... $(samples2time(get_bads_time(raw), Float64(raw.chans.srate[1])))
     """
     )
 end

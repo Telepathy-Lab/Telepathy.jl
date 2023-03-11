@@ -70,7 +70,7 @@ function read_from_bdf(file)
             "highTrigger" => UInt8[0],
             "status" => UInt8[0],
         )
-        return Raw(hdr, chns, data, times, Int64[], status)
+        return Raw(hdr, chns, data, times, Int64[], status, UnitRange{Int64}[])
     end
 end
 
