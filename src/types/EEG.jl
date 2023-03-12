@@ -253,8 +253,8 @@ function Base.show(io::IO, raw::Raw)
 end
 
 
-mutable struct Epochs
-    info::Info
+mutable struct Epochs{T} <: Recording where T
+    info::Info{T}
     chans::Channels
     data::Array
     times::StepRangeLen

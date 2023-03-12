@@ -1,5 +1,5 @@
-function channel_names(raw::Raw)
-    return raw.chans.name
+function channel_names(rec::Recording)
+    return rec.chans.name
 end
 
 # Generic versions for use without EEG objects
@@ -7,14 +7,14 @@ get_channels(data::AbstractArray, chanID::Integer) = get_channels(data, chanID:c
 get_channels(data::AbstractArray, chanRange::UnitRange) = collect(intersect(1:size(data, 2), chanRange))
 
 # Selection based on integer indices
-get_channels(data::Raw, chanID::Integer) = get_channels(data, chanID:chanID) 
-get_channels(data::Raw, chanRange::UnitRange) = collect(intersect(1:length(data.chans.name), chanRange))
-get_channels(data::Raw, chanRange::AbstractVector{<:Integer}) = intersect(chanRange, 1:length(data.chans.name))
+get_channels(rec::Recording, chanID::Integer) = get_channels(rec, chanID:chanID) 
+get_channels(rec::Recording, chanRange::UnitRange) = collect(intersect(1:length(rec.chans.name), chanRange))
+get_channels(rec::Recording, chanRange::AbstractVector{<:Integer}) = intersect(chanRange, 1:length(rec.chans.name))
 
 # Selection based on string channel names
 # Selecting the first element make the slicing return a Vector rather than a Matrix
-function get_channels(data::Raw, name::String)
-    idx = get_channels(data, [name])
+function get_channels(rec::Recording, name::String)
+    idx = get_channels(rec, [name])
     if isempty(idx)
         error("Channel $name not found in data.")
     else
@@ -22,23 +22,23 @@ function get_channels(data::Raw, name::String)
     end
 end
 
-function get_channels(data, names::Vector{String})
-    return findall(x -> x in names, data.chans.name)
+function get_channels(rec, names::Vector{String})
+    return findall(x -> x in names, rec.chans.name)
 end
 
 # Selection based on symbol channel type
-get_channels(data::Raw, type::Symbol) = get_channels(data, [type])
-function get_channels(data, types::Vector{Symbol})
+get_channels(rec::Recording, type::Symbol) = get_channels(rec, [type])
+function get_channels(rec, types::Vector{Symbol})
     # We only eval the types, no function calls are made, so hopefully this reduces side effects
     types = [eval(:(Telepathy.$type)) for type in types]
-    return findall(x -> typeof(x) in types, data.chans.type)
+    return findall(x -> typeof(x) in types, rec.chans.type)
 end
 
 # Selection based on direct channel type
-function get_channels(data::Raw, type::Sensor)
-    return findall(x -> x==type, data.chans.type)
+function get_channels(rec::Recording, type::Sensor)
+    return findall(x -> x==type, rec.chans.type)
 end
-get_channels(raw::Raw, channels::Colon) = Colon()
+get_channels(rec::Recording, channels::Colon) = Colon()
 
 # TODO: Add info in docs that using floats needs to specify the step fine enough to get the desired decimal places
 get_times(raw::Raw, times::AbstractFloat) = get_times(raw, times-1:times)
