@@ -8,6 +8,8 @@ mutable struct BrowserParams
     chanSelection::Vector{Int}
     chanSave::Vector{Int}
     timeSpan::StepRange{Int}
+    epochSpan::UnitRange{Int}
+    epochBorders::Observable
     scale::Float64
     grouping::Vector{Int}
     buffSize::Int
@@ -25,6 +27,8 @@ function BrowserParams(rec::Recording)
     chanSelection = get_channels(rec, :)
     chanSave = [0]
     timeSpan = 1:1:round(Int, srate*10)
+    epochSpan = 1:nSegments
+    epochBorders = Observable([0.])
     scale = 1.
     grouping = [0]
     buffSize = 50_000
@@ -37,7 +41,7 @@ function BrowserParams(rec::Recording)
         ($(box[3]) + $(box[4]), $(box[1]))
         ])
     return BrowserParams(rec, srate, nSamples, nChannels, nSegments, chanAll, chanSelection, 
-    chanSave, timeSpan, scale, grouping, buffSize, buffVectors, box, mapBuffer)
+    chanSave, timeSpan, epochSpan, epochBorders, scale, grouping, buffSize, buffVectors, box, mapBuffer)
 end
 
 

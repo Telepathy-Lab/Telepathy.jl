@@ -93,4 +93,4 @@ function set_type!(data, chans, type::Sensor)
 end
 
 # TODO: Needs to change when we add support for multiple sampling rates or unify reads
-get_srate(raw::Raw) = convert(Float64, raw.chans.srate[1])
+get_srate(rec::Recording) = convert(Float64, rec.chans.srate[1])
