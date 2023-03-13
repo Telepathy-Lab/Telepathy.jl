@@ -249,6 +249,7 @@ end
 function create_buffers(dataLength, srate, filterLength, nThreads)
     # Pad data with a multiple of sampling rate bigger than 1.5 times the filter length,
     # but not smaller than 2.
+    srate = round(Int, srate)
     multiple = max(cld(filterLength, srate), 2)
     padding = multiple * srate
     input = [zeros(dataLength + 2*padding) for i in 1:nThreads]

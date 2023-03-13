@@ -38,7 +38,7 @@ end
 function get_channels(rec::Recording, type::Sensor)
     return findall(x -> x==type, rec.chans.type)
 end
-get_channels(rec::Recording, channels::Colon) = Colon()
+get_channels(rec::Recording, channels::Colon) = 1:size(rec.data, 2)
 
 # TODO: Add info in docs that using floats needs to specify the step fine enough to get the desired decimal places
 get_times(raw::Raw, times::AbstractFloat) = get_times(raw, times-1:times)
@@ -58,10 +58,14 @@ function get_times(raw::Raw, times::AbstractRange; anchor::Int=0)
     return UnitRange(start, finish)
 end
 
-get_times(raw::Raw, times::Colon) = Colon()
+get_times(raw::Raw, times::Colon) = 1:size(raw.data, 1)
 
 # Convert to range to not loose precision
 get_times(raw::Raw, start::AbstractFloat, stop::AbstractFloat; kwargs...) = get_times(raw, start:(stop-start):stop; kwargs...)
+
+# Selection of data segments, if they exist
+get_segments(raw::Raw) = 1:1
+get_segments(epochs::Epochs) = 1:size(epochs.data, 3)
 
 # Separate type unions for times and channel selectors to check for input order in get_data
 rowTypes = Union{AbstractFloat, AbstractRange, Colon}

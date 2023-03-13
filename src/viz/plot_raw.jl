@@ -1,3 +1,46 @@
+mutable struct BrowserParams
+    rec::Recording
+    srate::Float64
+    nSamples::Int
+    nChannels::Int
+    nSegments::Int
+    chanAll::Vector{Int}
+    chanSelection::Vector{Int}
+    chanSave::Vector{Int}
+    timeSpan::StepRange{Int}
+    scale::Float64
+    grouping::Vector{Int}
+    buffSize::Int
+    buffVectors::Vector{<:Buffer}
+    box::Vector{<:Observable}
+    mapBuffer::Observable{<:Vector{<:Point2f}}
+end
+
+function BrowserParams(rec::Recording)
+    srate = get_srate(rec)
+    nSamples = size(rec.data, 1)
+    nChannels = size(rec.data, 2)
+    nSegments = size(rec.data, 3)
+    chanAll = get_channels(rec, :)
+    chanSelection = get_channels(rec, :)
+    chanSave = [0]
+    timeSpan = 1:1:round(Int, srate*10)
+    scale = 1.
+    grouping = [0]
+    buffSize = 50_000
+    buffVectors = [Buffer(Point2f.(zeros(1), zeros(1)))]
+    box = [Observable(0.), Observable(0.), Observable(0.), Observable(0.)]
+    mapBuffer = @lift(Point2f[
+        ($(box[3]), $(box[1])),
+        ($(box[3]), $(box[1]) - $(box[2])),
+        ($(box[3]) + $(box[4]), $(box[1]) - $(box[2])),
+        ($(box[3]) + $(box[4]), $(box[1]))
+        ])
+    return BrowserParams(rec, srate, nSamples, nChannels, nSegments, chanAll, chanSelection, 
+    chanSave, timeSpan, scale, grouping, buffSize, buffVectors, box, mapBuffer)
+end
+
+
 rawHotkeys = Dict(
     "stepBack" => Exclusively(Keyboard.left),
     "stepForw" => Exclusively(Keyboard.right),
@@ -13,6 +56,16 @@ rawHotkeys = Dict(
     "downScale" => Exclusively(Keyboard.minus),
     "butterfly" => Exclusively(Keyboard.b),
 )
+
+function create_browser_window(; resolution=(800, 600))
+    fig = Figure(resolution=resolution, figure_padding=(10,30,10,5))
+    plotAx = fig[1:9,1] = Axis(fig)
+    barAx = fig[10,1] = Axis(fig, backgroundcolor = (:black, 0.25), height=50)
+
+    plotAx.xticklabelsize = 14
+    plotAx.yticklabelsize = 12
+    return fig, plotAx, barAx
+end
 
 function demean(vec::AbstractVector)
     return vec .- mean(vec)
@@ -31,33 +84,33 @@ function decimate(newSpan, buffSize)
     return newSpan
 end
 
-update_buffers!(ax, ax2, params) = update_buffers!(ax, ax2, params, params["timeSpan"], params["chanSelection"])
+update_buffers!(ax, ax2, params) = update_buffers!(ax, ax2, params, params[1].timeSpan, params[1].chanSelection)
 
-function update_buffers!(ax, ax2, params, newSpan, newChans)
-    
+function update_buffers!(ax, ax2, paramss, newSpan, newChans)
+    params = paramss[1]
     # Trigger only when there is a change in data selection
-    if (params["timeSpan"] != newSpan) | (params["chanSelection"] != newChans)
-        spanDiff = length(params["timeSpan"]) - length(newSpan)
+    if (params.timeSpan != newSpan) | (params.chanSelection != newChans)
+        spanDiff = length(params.timeSpan) - length(newSpan)
         
         # Deal with the channels that are no longer in scope
-        chanDiff = setdiff(params["chanSelection"], newChans)
+        chanDiff = setdiff(params.chanSelection, newChans)
 
-        for buffVector in params["buffVectors"]
+        for idx in eachindex(paramss)
             for chan in chanDiff
-                buffVector[chan][end-length(params["timeSpan"])+1:end] = Point2f.(
-                    zeros(length(params["timeSpan"])), 
-                    zeros(length(params["timeSpan"])))
+                paramss[idx].buffVectors[chan][end-length(params.timeSpan)+1:end] = Point2f.(
+                    zeros(length(params.timeSpan)), 
+                    zeros(length(params.timeSpan)))
             end
 
-            params["timeSpan"] = newSpan
-            params["chanSelection"] = newChans
+            params.timeSpan = newSpan
+            params.chanSelection = newChans
 
-            for chan in params["chanSelection"]
+            for chan in params.chanSelection
 
                 # Deal with shortening of the signal in buffers 
-                span = params["timeSpan"]
+                span = params.timeSpan
                 if spanDiff > 0
-                    buffVector[chan][end-(length(span)+spanDiff)+1:end-length(span)] = Point2f.(
+                    paramss[idx].buffVectors[chan][end-(length(span)+spanDiff)+1:end-length(span)] = Point2f.(
                         zeros(1:spanDiff),
                         zeros(1:spanDiff))
                 end
@@ -66,39 +119,40 @@ function update_buffers!(ax, ax2, params, newSpan, newChans)
     end
 
     # Redraw already visible datapoints
-    for idx in eachindex(params["buffVectors"])
-        for chan in params["chanSelection"]
-            if params["grouping"] != 0
-                placement = -100 *params["grouping"][chan]
+    for idx in eachindex(paramss)
+        for chan in params.chanSelection
+            if params.grouping != [0]
+                placement = -100 * params.grouping[chan]
             else
                 placement = -100*chan
             end
             # Deal with shortening of the signal in buffers 
-            span = params["timeSpan"]
-            params["buffVectors"][idx][chan][end-length(span)+1:end] = Point2f.(
+            span = params.timeSpan
+            paramss[idx].buffVectors[chan][end-length(span)+1:end] = Point2f.(
                 span, 
-                demean(params["data"][idx].data[span,chan]) .* params["scale"] .+ placement)
+                demean(paramss[idx].rec.data[span,chan]) .* params.scale .+ placement)
         end
     end
+
     
-    ax.xticks = get_ticks(params["timeSpan"], params["srate"])
-    xlims!(ax, params["timeSpan"].start, params["timeSpan"].stop+1)
-    if params["grouping"] == 0
-        ylims!(ax, -100*params["chanSelection"][end]-50, -100*params["chanSelection"][1]+50)
+    ax.xticks = get_ticks(params.timeSpan, params.srate)
+    xlims!(ax, params.timeSpan.start, params.timeSpan.stop+1)
+    if params.grouping == [0]
+        ylims!(ax, -100*params.chanSelection[end]-50, -100*params.chanSelection[1]+50)
     end
 
-    pb = params["box"]
-    pb[1][] = hstart = -(params["chanSelection"][1]-1) / params["allChan"]
-    pb[2][] = height = length(params["chanSelection"]) / params["allChan"]
-    span = params["timeSpan"]
-    pb[3][] = wstart = span.start / params["sigLength"]
-    pb[4][] = width = (span.stop - span.start + 1) / params["sigLength"]
+    pb = params.box
+    pb[1][] = hstart = -(params.chanSelection[1]-1) / params.nChannels
+    pb[2][] = height = length(params.chanSelection) / params.nChannels
+    span = params.timeSpan
+    pb[3][] = wstart = span.start / params.nSamples
+    pb[4][] = width = (span.stop - span.start + 1) / params.nSamples
 
     xlims!(ax2, 0, 1)
     ylims!(ax2, -1, 0)
 end
 
-function get_ticks(dataSpan, srate::Integer)
+function get_ticks(dataSpan, srate::Float64)
     # Include the tick at the end to make xticks symmetric 
     # if N samples is a multiple of sample rate.
     newValues = dataSpan.start:(dataSpan.stop+1)
@@ -119,53 +173,56 @@ function get_ticks(dataSpan, srate::Integer)
     return ticks, tickLabels
 end
 
-function step_data(ax, ax2, params, step)
-    span = params["timeSpan"]
+function step_data(ax, ax2, paramss, step)
+    params = paramss[1]
+    span = params.timeSpan
     len = span.stop - span.start + 1
     newSpan = span .+ round(Int, len*step)
     
     if newSpan.start < 1
         newSpan = 1:span.step:len
     end
-    if newSpan.stop > params["sigLength"]
-        newSpan = (params["sigLength"]-len):span.step:params["sigLength"]
+    if newSpan.stop > params.nSamples
+        newSpan = (params.nSamples-len):span.step:params.nSamples
     end
 
-    update_buffers!(ax, ax2, params, newSpan, params["chanSelection"])
+    update_buffers!(ax, ax2, paramss, newSpan, params.chanSelection)
 end
 
-function change_span(ax, ax2, params, change)
-    span = params["timeSpan"]
+function change_span(ax, ax2, paramss, change)
+    params = paramss[1]
+    span = params.timeSpan
     newSpan = span.start:span.step:(span.start + round(Int, (span.stop-span.start+1)*change))
 
     if newSpan.start < 1
         newSpan = 1:span.step:newSpan.stop
     end
-    if newSpan.stop > params["sigLength"]
-        newSpan = newSpan.start:span.step:params["sigLength"]
+    if newSpan.stop > params.nSamples
+        newSpan = newSpan.start:span.step:params.nSamples
     end
 
-    if (length(newSpan) >= params["buffSize"]) | (length(newSpan) < params["buffSize"]/2)
-        newSpan = decimate(newSpan, params["buffSize"])
+    if (length(newSpan) >= params.buffSize) | (length(newSpan) < params.buffSize/2)
+        newSpan = decimate(newSpan, params.buffSize)
     end
 
-    update_buffers!(ax, ax2, params, newSpan, params["chanSelection"])
+    update_buffers!(ax, ax2, paramss, newSpan, params.chanSelection)
 end
 
-function change_chans(ax, ax2, params, position, amount)
-    newChans = chans = params["chanSelection"]
+function change_chans(ax, ax2, paramss, position, amount)
+    params = paramss[1]
+    newChans = chans = params.chanSelection
 
     # Change the displayed channel indices according to position number
     if (position < 0) & (chans[1] > 1)
         newChans = vcat((chans[1]+position):(chans[1]-1), chans[1:end+position])
-    elseif (position > 0) & (chans[end] < params["allChan"])
+    elseif (position > 0) & (chans[end] < params.nChannels)
         newChans = vcat(chans[1+position:end], chans[end]+1:chans[end]+position)
     end
     
     # Change the amount of channels and make sure it is possible
     if (amount < 0) & (length(newChans) > 1)
         newChans = newChans[1:end-1]
-    elseif (amount > 0) & (length(newChans) < params["allChan"])
+    elseif (amount > 0) & (length(newChans) < params.nChannels)
         newChans = vcat(newChans, newChans[end]+1)
     end
 
@@ -173,207 +230,109 @@ function change_chans(ax, ax2, params, position, amount)
     if any(x -> x < 1, newChans)
         newChans = 1:length(chans)
     end
-    if any(x -> x > params["allChan"], newChans)
-        newChans = (params["allChan"]-length(chans)):params["allChan"]
+    if any(x -> x > params.nChannels, newChans)
+        newChans = (params.nChannels-length(chans)):params.nChannels
     end
 
-    update_buffers!(ax, ax2, params, params["timeSpan"], newChans)
+    update_buffers!(ax, ax2, paramss, params.timeSpan, newChans)
 end
 
-function change_scale(ax, ax2, params, factor)
-    params["scale"] *= factor
-    update_buffers!(ax, ax2, params, params["timeSpan"], params["chanSelection"])
+function change_scale(ax, ax2, paramss, factor)
+    params = paramss[1]
+    params.scale *= factor
+    update_buffers!(ax, ax2, paramss, params.timeSpan, params.chanSelection)
 end
 
-function change_grouping(ax, ax2, params)
-    chans = params["data"][1].chans
-    if params["grouping"] == 0
-        params["grouping"] = zeros(length(chans.type))
+function change_grouping(ax, ax2, paramss)
+    params = paramss[1]
+    chans = params.rec.chans
+    if params.grouping == [0]
+        params.grouping = zeros(length(chans.type))
         
         chanTypes = unique(chans.type)
         for i in eachindex(chanTypes)
-            params["grouping"][findall(x -> x == chanTypes[i], chans.type)] .= i
+            params.grouping[findall(x -> x == chanTypes[i], chans.type)] .= i
         end
 
-        newChans = 1:params["allChan"]
-        params["chanSave"] = params["chanSelection"]
+        newChans = 1:params.nChannels
+        params.chanSave = params.chanSelection
 
         ax.yticks = (-100:-100:(-100*length(chanTypes)), string.(chanTypes))
         ylims!(ax, -100*length(chanTypes)-50, -50)
     else
-        params["grouping"] = 0
+        params.grouping = [0]
 
-        newChans = params["chanSave"]
-        ax.yticks = (-100:-100:-100*params["allChan"], chans.name)
+        newChans = params.chanSave
+        ax.yticks = (-100:-100:-100*params.nChannels, chans.name)
     end
-    update_buffers!(ax, ax2, params, params["timeSpan"], newChans)
+    update_buffers!(ax, ax2, paramss, params.timeSpan, newChans)
 end
 
-function draw!(ax, params; colors=[:black], linewidths=[0.5])
-    for idx in eachindex(params["buffVectors"])
-        for buff in params["buffVectors"][idx]
+function draw!(ax, params; colors=[:black, :red, :green], linewidths=[0.5, 1, 1])
+    for idx in eachindex(params)
+        for buff in params[idx].buffVectors
             lines!(ax, buff, color=colors[idx], linewidth=linewidths[idx])
         end
     end
 end
 
 function draw_map!(ax2, params)
-    poly!(ax2, params["mapBuffer"], color=:white, strokewidth=1, strokecolor=:black)
+    poly!(ax2, params[1].mapBuffer, color=:white, strokewidth=1, strokecolor=:black)
 end
 
-function Makie.plot(raw::Raw; channels=1:20, timeSpan=10., step=0.25, hotkeys=rawHotkeys, buffSize=50_000)
+function Makie.plot(raws::Raw...; channels=1:20, timeSpan=10., step=0.25, hotkeys=rawHotkeys, buffSize=50_000)
     
-    fig = Figure(resolution=(1000, 600), figure_padding=(10,30,10,5))
-    ax = fig[1:9,1] = Axis(fig)
-    ax2 = fig[10,1] = Axis(fig, backgroundcolor = (:black, 0.25), height=50)
+    fig, plotAx, barAx = create_browser_window()
 
-    params = Dict(
-        "data" => [raw],
-        "buffSize" => buffSize,
-        "srate" => raw.chans.srate[1],
-        "sigLength" => size(raw.data, 1),
-        "allChan" => size(raw.data, 2),
-        "chanSelection" => get_channels(raw, channels),
-        "chanSave" => [0],
-        "timeSpan" => 1:1:round(Int, raw.chans.srate[1]*timeSpan),
-        "scale" => 1.,
-        "grouping" => 0,
-    )
+    params = [BrowserParams(raw) for raw in raws]
+    params[1].chanSelection = get_channels(raws[1], channels)
+    params[1].timeSpan = 1:1:round(Int, raws[1].chans.srate[1]*timeSpan)
+    params[1].buffSize = buffSize
 
-    ax.xticks = get_ticks(params["timeSpan"], params["srate"])
-    ax.yticks = (-100:-100:-100*params["allChan"], params["data"][1].chans.name)
+    plotAx.yticks = (-100:-100:-100*params[1].nChannels, params[1].rec.chans.name)
 
     # Preallocate buffers with a reasonable length (e.g. keep total points below 5M)
-    params["buffVectors"] = [
-        [Buffer(Point2f.(zeros(params["buffSize"]), zeros(params["buffSize"]))) for i in 1:params["allChan"]]
-        ]
-    
-    pb = params["box"] = [Observable(0.), Observable(0.), Observable(0.), Observable(0.)]
-    params["mapBuffer"] = @lift(Point2f[
-        ($(pb[3]), $(pb[1])),
-        ($(pb[3]), $(pb[1]) - $(pb[2])),
-        ($(pb[3]) + $(pb[4]), $(pb[1]) - $(pb[2])),
-        ($(pb[3]) + $(pb[4]), $(pb[1]))
-        ])
-
-    update_buffers!(ax, ax2, params)
-
-    draw!(ax, params)
-
-    xlims!(ax, params["timeSpan"].start, params["timeSpan"].stop+1)
-    ylims!(ax, -100*length(params["chanSelection"])-50, -100*params["chanSelection"][1]+50)
-
-    on(events(fig).keyboardbutton) do event
-        ispressed(fig, hotkeys["stepForw"]) && step_data(ax, ax2, params, step)
-        ispressed(fig, hotkeys["stepBack"]) && step_data(ax, ax2, params, -step)
-        ispressed(fig, hotkeys["stepForwFull"]) && step_data(ax, ax2, params, 1)
-        ispressed(fig, hotkeys["stepBackFull"]) && step_data(ax, ax2, params, -1)
-
-        ispressed(fig, rawHotkeys["moreSpan"]) && change_span(ax, ax2, params, 1.5) 
-        ispressed(fig, rawHotkeys["lessSpan"]) && change_span(ax, ax2, params, 1/1.5)
-
-        ispressed(fig, rawHotkeys["upChans"]) && change_chans(ax, ax2, params, -1, 0)
-        ispressed(fig, rawHotkeys["downChans"]) && change_chans(ax, ax2, params, 1, 0)
-        ispressed(fig, rawHotkeys["lessChans"]) && change_chans(ax, ax2, params, 0, -1)
-        ispressed(fig, rawHotkeys["moreChans"]) && change_chans(ax, ax2, params, 0, 1)
-
-        ispressed(fig, rawHotkeys["upScale"]) && change_scale(ax, ax2, params, 1.5)
-        ispressed(fig, rawHotkeys["downScale"]) && change_scale(ax, ax2, params, 1/1.5)
-
-        ispressed(fig, rawHotkeys["butterfly"]) && change_grouping(ax, ax2, params)
+    for param in params
+        param.buffVectors = [
+            Buffer(Point2f.(zeros(params[1].buffSize), zeros(params[1].buffSize))) for i in 1:params[1].nChannels
+            ]
     end
 
-    draw_map!(ax2, params)
+    update_buffers!(plotAx, barAx, params)
 
-    xlims!(ax2, 0, 1)
-    ylims!(ax2, -1, 0)
-    hidespines!(ax2)
-    hidedecorations!(ax2)
+    draw!(plotAx, params)
 
-    ax.xticklabelsize = 14
-    ax.yticklabelsize = 12
+    xlims!(plotAx, params[1].timeSpan.start, params[1].timeSpan.stop+1)
+    ylims!(plotAx, -100*length(params[1].chanSelection)-50, -100*params[1].chanSelection[1]+50)
+
+    on(events(fig).keyboardbutton) do event
+        ispressed(fig, hotkeys["stepForw"]) && step_data(plotAx, barAx, params, step)
+        ispressed(fig, hotkeys["stepBack"]) && step_data(plotAx, barAx, params, -step)
+        ispressed(fig, hotkeys["stepForwFull"]) && step_data(plotAx, barAx, params, 1)
+        ispressed(fig, hotkeys["stepBackFull"]) && step_data(plotAx, barAx, params, -1)
+
+        ispressed(fig, hotkeys["moreSpan"]) && change_span(plotAx, barAx, params, 1.5) 
+        ispressed(fig, hotkeys["lessSpan"]) && change_span(plotAx, barAx, params, 1/1.5)
+
+        ispressed(fig, hotkeys["upChans"]) && change_chans(plotAx, barAx, params, -1, 0)
+        ispressed(fig, hotkeys["downChans"]) && change_chans(plotAx, barAx, params, 1, 0)
+        ispressed(fig, hotkeys["lessChans"]) && change_chans(plotAx, barAx, params, 0, -1)
+        ispressed(fig, hotkeys["moreChans"]) && change_chans(plotAx, barAx, params, 0, 1)
+
+        ispressed(fig, hotkeys["upScale"]) && change_scale(plotAx, barAx, params, 1.5)
+        ispressed(fig, hotkeys["downScale"]) && change_scale(plotAx, barAx, params, 1/1.5)
+
+        ispressed(fig, hotkeys["butterfly"]) && change_grouping(plotAx, barAx, params)
+    end
+
+    draw_map!(barAx, params)
+
+    xlims!(barAx, 0, 1)
+    ylims!(barAx, -1, 0)
+    hidespines!(barAx)
+    hidedecorations!(barAx)
 
     display(fig)
 
-    return fig, ax, ax2
-end
-
-function Makie.plot(rawOne::Raw, rawTwo::Raw; channels=1:20, timeSpan=10., step=0.25, hotkeys=rawHotkeys, buffSize=50_000)
-
-    if size(rawOne.data) != size(rawTwo.data)
-        error("Overlay plotting for datasets of different size is not implemented.")
-    end
-    
-    fig = Figure(resolution=(1000, 600), figure_padding=(10,30,10,5))
-    ax = fig[1:9,1] = Axis(fig)
-    ax2 = fig[10,1] = Axis(fig, backgroundcolor = (:black, 0.25), height=50)
-
-    params = Dict(
-        "data" => [rawOne, rawTwo],
-        "buffSize" => buffSize,
-        "srate" => rawOne.chans.srate[1],
-        "sigLength" => size(rawOne.data, 1),
-        "allChan" => size(rawOne.data, 2),
-        "chanSelection" => get_channels(rawOne, channels),
-        "chanSave" => [0],
-        "timeSpan" => 1:1:round(Int, rawOne.chans.srate[1]*timeSpan),
-        "scale" => 1.,
-        "grouping" => 0,
-    )
-
-    ax.xticks = get_ticks(params["timeSpan"], params["srate"])
-    ax.yticks = (-100:-100:-100*params["allChan"], params["data"][1].chans.name)
-
-    # Preallocate buffers with a reasonable length (e.g. keep total points below 5M)
-    params["buffVectors"] = [
-        [Buffer(Point2f.(zeros(params["buffSize"]), zeros(params["buffSize"]))) for i in 1:params["allChan"]],
-        [Buffer(Point2f.(zeros(params["buffSize"]), zeros(params["buffSize"]))) for i in 1:params["allChan"]]
-    ]
-    
-    pb = params["box"] = [Observable(0.), Observable(0.), Observable(0.), Observable(0.)]
-    params["mapBuffer"] = @lift(Point2f[
-        ($(pb[3]), $(pb[1])),
-        ($(pb[3]), $(pb[1]) - $(pb[2])),
-        ($(pb[3]) + $(pb[4]), $(pb[1]) - $(pb[2])),
-        ($(pb[3]) + $(pb[4]), $(pb[1]))
-        ])
-
-    update_buffers!(ax, ax2, params)
-
-    draw!(ax, params, colors=[:grey, :tomato], linewidths=[0.5,1.0])
-
-    xlims!(ax, params["timeSpan"].start, params["timeSpan"].stop+1)
-    ylims!(ax, -100*length(params["chanSelection"])-50, -100*params["chanSelection"][1]+50)
-
-    on(events(fig).keyboardbutton) do event
-        ispressed(fig, hotkeys["stepForw"]) && step_data(ax, ax2, params, step)
-        ispressed(fig, hotkeys["stepBack"]) && step_data(ax, ax2, params, -step)
-        ispressed(fig, hotkeys["stepForwFull"]) && step_data(ax, ax2, params, 1)
-        ispressed(fig, hotkeys["stepBackFull"]) && step_data(ax, ax2, params, -1)
-
-        ispressed(fig, rawHotkeys["moreSpan"]) && change_span(ax, ax2, params, 1.5) 
-        ispressed(fig, rawHotkeys["lessSpan"]) && change_span(ax, ax2, params, 1/1.5)
-
-        ispressed(fig, rawHotkeys["upChans"]) && change_chans(ax, ax2, params, -1, 0)
-        ispressed(fig, rawHotkeys["downChans"]) && change_chans(ax, ax2, params, 1, 0)
-        ispressed(fig, rawHotkeys["lessChans"]) && change_chans(ax, ax2, params, 0, -1)
-        ispressed(fig, rawHotkeys["moreChans"]) && change_chans(ax, ax2, params, 0, 1)
-
-        ispressed(fig, rawHotkeys["upScale"]) && change_scale(ax, ax2, params, 1.5)
-        ispressed(fig, rawHotkeys["downScale"]) && change_scale(ax, ax2, params, 1/1.5)
-
-        ispressed(fig, rawHotkeys["butterfly"]) && change_grouping(ax, ax2, params)
-    end
-
-    draw_map!(ax2, params)
-
-    xlims!(ax2, 0, 1)
-    ylims!(ax2, -1, 0)
-    hidespines!(ax2)
-    hidedecorations!(ax2)
-
-    ax.xticklabelsize = 14
-    ax.yticklabelsize = 12
-
-    display(fig)
+    return fig, plotAx, barAx
 end
