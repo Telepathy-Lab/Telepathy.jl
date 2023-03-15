@@ -1,6 +1,9 @@
 module Telepathy
 
 # For development purposes
+#__precompile__(false)
+
+version = "0.1.0"
 
 import Pkg
 using Dates
@@ -50,6 +53,7 @@ include("viz/plot_layout.jl")
 export plot_layout
 
 include("viz/plot_raw.jl")
+include("viz/plot_epochs.jl")
 include("viz/plot_filter.jl")
 export plot_filter
 

@@ -225,10 +225,6 @@ function draw!(ax, params, epochSpan; colors=[:black, :red, :green], linewidths=
     vlines!(ax, params[1].epochBorders, color=:black, linewidth=1, linestyle=:dash)
 end
 
-function draw_map!(ax2, params)
-    poly!(ax2, params[1].mapBuffer, color=:white, strokewidth=1, strokecolor=:black)
-end
-
 function Makie.plot(epochs::Epochs...; channels=1:20, epochSpan=1:10, step=0.25, hotkeys=rawHotkeys, buffSize=50_000)
     
     fig, plotAx, barAx = create_browser_window()

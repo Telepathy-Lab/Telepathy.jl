@@ -46,13 +46,10 @@ get_times(raw::Raw, times::AbstractFloat) = get_times(raw, times-1:times)
 function get_times(raw::Raw, times::AbstractRange; anchor::Number=0)
     if typeof(anchor) <: AbstractFloat
         anchor = round(Int64, anchor*get_srate(raw))
-        return get_times(raw, times, anchor)
     elseif !(typeof(anchor) <: Integer)
         error("Anchor must be an integer or float.")
     end
-end
 
-function get_times(raw::Raw, times::AbstractRange; anchor::Int=0)
     start = round(Int64, times[begin]*get_srate(raw) + 1 + anchor)
     finish = round(Int64, times[end]*get_srate(raw) + anchor)
     return UnitRange(start, finish)
