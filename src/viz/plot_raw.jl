@@ -14,6 +14,7 @@ mutable struct BrowserParams
     grouping::Vector{Int}
     buffSize::Int
     buffVectors::Vector{<:Buffer}
+    buffBads::Observable{<:Vector}
     box::Vector{<:Observable}
     mapBuffer::Observable{<:Vector{<:Point2f}}
 end
@@ -33,6 +34,7 @@ function BrowserParams(rec::Recording)
     grouping = [0]
     buffSize = 50_000
     buffVectors = [Buffer(Point2f.(zeros(1), zeros(1)))]
+    buffBads = Observable(Rect2f[])
     box = [Observable(0.), Observable(0.), Observable(0.), Observable(0.)]
     mapBuffer = @lift(Point2f[
         ($(box[3]), $(box[1])),
@@ -41,7 +43,8 @@ function BrowserParams(rec::Recording)
         ($(box[3]) + $(box[4]), $(box[1]))
         ])
     return BrowserParams(rec, srate, nSamples, nChannels, nSegments, chanAll, chanSelection, 
-    chanSave, timeSpan, epochSpan, epochBorders, scale, grouping, buffSize, buffVectors, box, mapBuffer)
+    chanSave, timeSpan, epochSpan, epochBorders, scale, grouping, buffSize, buffVectors, 
+    buffBads, box, mapBuffer)
 end
 
 
@@ -86,6 +89,12 @@ function decimate(newSpan, buffSize)
         return newSpan.start:(newSpan.step÷2):newSpan.stop
     end
     return newSpan
+end
+
+function get_bad_poly(params)
+    bads = intersect.(params[1].rec.bads, [params[1].timeSpan])
+    yDim = -100 * (params[1].nChannels + 1)
+    return [Rect2f(Point2f(x.start, 100), Point2f(length(x), yDim)) for x in bads if x.start < x.stop]
 end
 
 update_buffers!(ax, ax2, params) = update_buffers!(ax, ax2, params, params[1].timeSpan, params[1].chanSelection)
@@ -138,6 +147,7 @@ function update_buffers!(ax, ax2, paramss, newSpan, newChans)
         end
     end
 
+    paramss[1].buffBads[] = get_bad_poly(paramss)
     
     ax.xticks = get_ticks(params.timeSpan, params.srate)
     xlims!(ax, params.timeSpan.start, params.timeSpan.stop+1)
@@ -273,6 +283,8 @@ function change_grouping(ax, ax2, paramss)
 end
 
 function draw!(ax, params; colors=[:black, :red, :green], linewidths=[0.5, 1, 1])
+    poly!(ax, params[1].buffBads, color=(:red, 0.15))
+
     for idx in eachindex(params)
         for buff in params[idx].buffVectors
             lines!(ax, buff, color=colors[idx], linewidth=linewidths[idx])

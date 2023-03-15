@@ -13,6 +13,22 @@ function decimate_epochs(paramss, newSpan)
     return newSpan
 end
 
+function get_bad_epoch_poly(params)
+    if isempty(params[1].rec.bads)
+        return Rect2f[]
+    else
+        idxs = findall(x -> x in params[1].rec.bads, params[1].epochSpan)
+    end
+
+    if isempty(idxs)
+        return Rect2f[]
+    else
+        xDim = length(params[1].timeSpan)
+        yDim = -100 * (params[1].nChannels + 1)
+        return [Rect2f(Point2f(xDim*(idx-1), 100), Point2f(xDim, yDim)) for idx in idxs]
+    end
+end
+
 update_buffers_epochs!(ax, ax2, params) = update_buffers_epochs!(ax, ax2, params, params[1].timeSpan, params[1].chanSelection, params[1].epochSpan)
 
 function update_buffers_epochs!(ax, ax2, paramss, newTimeSpan, newChans, newEpochs)
@@ -74,6 +90,7 @@ function update_buffers_epochs!(ax, ax2, paramss, newTimeSpan, newChans, newEpoc
 
     paramss[1].epochBorders[] = length(paramss[1].timeSpan):length(paramss[1].timeSpan):length(paramss[1].timeSpan)*(length(paramss[1].epochSpan)-1)
 
+    paramss[1].buffBads[] = get_bad_epoch_poly(paramss)
     
     ax.xticks = get_ticks(paramss[1].timeSpan, paramss[1].srate, paramss[1].epochSpan)
     xlims!(ax, paramss[1].timeSpan.start, length(paramss[1].epochSpan)*length(paramss[1].timeSpan)+1)
@@ -197,6 +214,8 @@ function change_grouping_epoch(ax, ax2, paramss)
 end
 
 function draw!(ax, params, epochSpan; colors=[:black, :red, :green], linewidths=[0.5, 1, 1])
+    poly!(ax, params[1].buffBads, color=(:red, 0.15))
+
     for idx in eachindex(params)
         for buff in params[idx].buffVectors
             lines!(ax, buff, color=colors[idx], linewidth=linewidths[idx])

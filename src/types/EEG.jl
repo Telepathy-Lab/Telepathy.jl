@@ -259,7 +259,7 @@ mutable struct Epochs{T} <: Recording where T
     data::Array
     times::StepRangeLen
     events::Array
-    bads::Vector{Bool}
+    bads::Vector{Int}
 end
 
 Epochs(raw::Raw; start=-0.2, stop=0.8) = Epochs(
@@ -268,7 +268,7 @@ Epochs(raw::Raw; start=-0.2, stop=0.8) = Epochs(
     create_epochs(raw, start, stop),
     raw.times,
     raw.events,
-    Bool[]
+    Int[]
 )
 
 function create_epochs(epochs::Array, data::Array, ranges::Vector{UnitRange{Int}})
