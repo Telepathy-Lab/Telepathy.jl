@@ -227,7 +227,7 @@ end
 
 function Makie.plot(epochs::Epochs...; channels=1:20, epochSpan=1:10, step=0.25, hotkeys=rawHotkeys, buffSize=50_000)
     
-    fig, plotAx, barAx = create_browser_window()
+    fig, plotAx, barAx, helpAx = create_browser_window()
 
     params = [BrowserParams(epoch) for epoch in epochs]
     params[1].chanSelection = get_channels(epochs[1], channels)
@@ -266,9 +266,24 @@ function Makie.plot(epochs::Epochs...; channels=1:20, epochSpan=1:10, step=0.25,
         ispressed(fig, hotkeys["downScale"]) && change_scale_epoch(plotAx, barAx, params, 1/1.5)
 
         ispressed(fig, hotkeys["butterfly"]) && change_grouping_epoch(plotAx, barAx, params)
+
+        ispressed(fig, hotkeys["help"]) && toggle_help(helpAx)
+    end
+
+    on(events(fig).scroll, priority=100) do (dx, dy)
+        if is_mouseinside(plotAx)
+            dy = -round(Int, dy)
+            if dy < 0
+                change_chans_epoch(plotAx, barAx, params, dy, 0)
+            elseif dy > 0
+                change_chans_epoch(plotAx, barAx, params, dy, 0)
+            end
+        end
+        return Consume(true)
     end
 
     draw_map!(barAx, params)
+    draw_help!(helpAx)
 
     hidespines!(barAx)
     hidedecorations!(barAx)

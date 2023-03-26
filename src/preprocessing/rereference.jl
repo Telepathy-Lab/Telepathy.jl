@@ -139,7 +139,7 @@ function set_reference!(array::AbstractArray, reference::Vector{<:Integer})
     rereference!(array, ref, collect(1:size(array, 2)))
 end
 
-function rereference!(array::AbstractArray, reference::AbstractVector, channels)
+function rereference!(array::AbstractArray, reference, channels)
     if size(array, 1) != length(reference)
         error("The number of rows in the array must match the length of the reference.")
     else

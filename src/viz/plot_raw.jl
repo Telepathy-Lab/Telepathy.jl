@@ -62,16 +62,46 @@ rawHotkeys = Dict(
     "upScale" => Exclusively(Keyboard.equal),
     "downScale" => Exclusively(Keyboard.minus),
     "butterfly" => Exclusively(Keyboard.b),
+    "help" => Exclusively(Keyboard.h),
 )
+
+helpinfo = [
+    ("↑", "Move the view one signal up"),
+    ("↓", "Move the view one signal down"),
+    ("PgUp", "Decrease the number of signals"),
+    ("PgDown", "Increase the number of signals"),
+    (" ", " "),
+    ("←", "Go back in time by 25% of the window"),
+    ("Shift + ←", "Go back in time by 100% of the window"),
+    ("→", "Go forward in time by 25% of the window"),
+    ("Shift + →", "Go forward in time by 100% of the window"),
+    (" ", " "),
+    (",", "Decrease the window size by 25%"),
+    (".", "Increase the window size by 25%"),
+    (" ", " "),
+    ("+", "Scale signals up"),
+    ("-", "Scale signals down"),
+    (" ", " "),
+    ("b", "Butterfly view"),
+    (" ", " "),
+    ("h", "Show/hide help"),
+]
 
 function create_browser_window(; resolution=(800, 600))
     fig = Figure(resolution=resolution, figure_padding=(10,30,10,5))
     plotAx = fig[1:9,1] = Axis(fig)
     barAx = fig[10,1] = Axis(fig, backgroundcolor = (:black, 0.25), height=50)
 
+    bbox = lift(fig.scene.px_area) do area
+        origin = area.origin
+        widths = area.widths
+        BBox(origin[1], widths[1], origin[2], widths[2])
+    end
+    helpAx = Axis(fig, bbox = bbox, backgroundcolor = :white)
+
     plotAx.xticklabelsize = 14
     plotAx.yticklabelsize = 12
-    return fig, plotAx, barAx
+    return fig, plotAx, barAx, helpAx
 end
 
 function demean(vec::AbstractVector)
@@ -227,16 +257,16 @@ function change_chans(ax, ax2, paramss, position, amount)
     newChans = chans = params.chanSelection
 
     # Change the displayed channel indices according to position number
-    if (position < 0) & (chans[1] > 1)
-        newChans = vcat((chans[1]+position):(chans[1]-1), chans[1:end+position])
-    elseif (position > 0) & (chans[end] < params.nChannels)
-        newChans = vcat(chans[1+position:end], chans[end]+1:chans[end]+position)
+    if (position < 0) && (chans[1] > 1)
+        newChans = collect(chans.+position)
+    elseif (position > 0) && (chans[end] < params.nChannels)
+        newChans = collect(chans.+position)
     end
-    
+
     # Change the amount of channels and make sure it is possible
-    if (amount < 0) & (length(newChans) > 1)
+    if (amount < 0) && (length(newChans) > 1)
         newChans = newChans[1:end-1]
-    elseif (amount > 0) & (length(newChans) < params.nChannels)
+    elseif (amount > 0) && (length(newChans) < params.nChannels)
         newChans = vcat(newChans, newChans[end]+1)
     end
 
@@ -282,6 +312,22 @@ function change_grouping(ax, ax2, paramss)
     update_buffers!(ax, ax2, paramss, params.timeSpan, newChans)
 end
 
+translate_forward!(x::Makie.Transformable, z) = translate!(Accum, x, 0, 0, z)
+translate_forward!(ax::Makie.LineAxis, z) = foreach(x -> translate_forward!(x, z), values(ax.elements))
+translate_forward!(_) = nothing
+
+function toggle_help(helpAx)
+    z = helpAx.scene.transformation.translation.val[3]
+    for (key, val) in pairs(helpAx.elements)
+        if key == :background
+            translate_forward!(val, -1*z)
+        else
+            translate_forward!(val, -2z)
+        end
+    end
+    translate!(Accum, helpAx.scene, 0, 0, -2z)
+end
+
 function draw!(ax, params; colors=[:black, :red, :green], linewidths=[0.5, 1, 1])
     poly!(ax, params[1].buffBads, color=(:red, 0.15))
 
@@ -296,9 +342,30 @@ function draw_map!(ax2, params)
     poly!(ax2, params[1].mapBuffer, color=:white, strokewidth=1, strokecolor=:black)
 end
 
+function draw_help!(helpAx)
+
+    i = 0
+    for idx in eachindex(helpinfo)
+        key, val = helpinfo[idx]
+        text!(helpAx, -1, -i, text=key, color=:black, fontsize=15, align=(:right, :center))
+        text!(helpAx, 1, -i, text=val, color=:black, fontsize=15, align=(:left, :center))
+        i += 1
+    end
+
+    hidedecorations!(helpAx)
+    hidespines!(helpAx)
+
+    xlims!(helpAx, (-10, 13))
+    ylims!(helpAx, (-20, 2))
+
+    foreach(x -> translate_forward!(x, -10000), values(helpAx.elements))
+    translate!(Accum, helpAx.scene, 0, 0, -10000)
+    translate!(Accum, helpAx.elements[:background], 0, 0, 5000)
+end
+
 function Makie.plot(raws::Raw...; channels=1:20, timeSpan=10., step=0.25, hotkeys=rawHotkeys, buffSize=50_000)
     
-    fig, plotAx, barAx = create_browser_window()
+    fig, plotAx, barAx, helpAx = create_browser_window()
 
     params = [BrowserParams(raw) for raw in raws]
     params[1].chanSelection = get_channels(raws[1], channels)
@@ -339,9 +406,44 @@ function Makie.plot(raws::Raw...; channels=1:20, timeSpan=10., step=0.25, hotkey
         ispressed(fig, hotkeys["downScale"]) && change_scale(plotAx, barAx, params, 1/1.5)
 
         ispressed(fig, hotkeys["butterfly"]) && change_grouping(plotAx, barAx, params)
+
+        ispressed(fig, hotkeys["help"]) && toggle_help(helpAx)
+    end
+
+    on(events(fig).scroll, priority=100) do (dx, dy)
+        if is_mouseinside(plotAx)
+            dy = -round(Int, dy)
+            if dy < 0
+                change_chans(plotAx, barAx, params, dy, 0)
+            elseif dy > 0
+                change_chans(plotAx, barAx, params, dy, 0)
+            end
+        end
+        return Consume(true)
+    end
+
+    on(events(fig).mousebutton) do click
+        if click.action == Mouse.press && is_mouseinside(barAx)
+            pos = events(fig).mouseposition.val
+            dims = barAx.layoutobservables.computedbbox.val
+            xrel = (pos[1] - dims.origin[1]) / dims.widths[1]
+            yrel = 1 - (pos[2] - dims.origin[2]) / dims.widths[2]
+
+            chnspan = length(params[1].chanSelection)
+            chnstep = 1/params[1].nChannels
+            deltaChan = round(Int, ((yrel/chnstep)-(chnspan/2))) - params[1].chanSelection[1]
+
+            samplespan = length(params[1].timeSpan)
+            samplestep = 1/params[1].nSamples
+            deltaSample = (round(Int, ((xrel/samplestep)-(samplespan/2))) - params[1].timeSpan[1])/samplespan
+
+            change_chans(plotAx, barAx, params, deltaChan, 0)
+            step_data(plotAx, barAx, params, deltaSample)
+        end
     end
 
     draw_map!(barAx, params)
+    draw_help!(helpAx)
 
     xlims!(barAx, 0, 1)
     ylims!(barAx, -1, 0)
@@ -350,5 +452,5 @@ function Makie.plot(raws::Raw...; channels=1:20, timeSpan=10., step=0.25, hotkey
 
     display(fig)
 
-    return fig, plotAx, barAx
+    return fig, plotAx, barAx, helpAx
 end
