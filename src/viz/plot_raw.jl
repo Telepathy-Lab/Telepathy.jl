@@ -24,8 +24,8 @@ function BrowserParams(rec::Recording)
     nSamples = size(rec.data, 1)
     nChannels = size(rec.data, 2)
     nSegments = size(rec.data, 3)
-    chanAll = get_channels(rec, :)
-    chanSelection = get_channels(rec, :)
+    chanAll = _get_channels(rec, :)
+    chanSelection = _get_channels(rec, :)
     chanSave = [0]
     timeSpan = 1:1:round(Int, srate*10)
     epochSpan = 1:nSegments
@@ -368,7 +368,7 @@ function Makie.plot(raws::Raw...; channels=1:20, timeSpan=10., step=0.25, hotkey
     fig, plotAx, barAx, helpAx = create_browser_window()
 
     params = [BrowserParams(raw) for raw in raws]
-    params[1].chanSelection = get_channels(raws[1], channels)
+    params[1].chanSelection = _get_channels(raws[1], channels)
     params[1].timeSpan = 1:1:round(Int, raws[1].chans.srate[1]*timeSpan)
     params[1].buffSize = buffSize
 

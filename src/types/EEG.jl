@@ -148,8 +148,8 @@ Base.length(raw::Raw) = size(raw.data, 2)
 Base.size(raw::Raw) = size(raw.data, 2)
 
 # Requirements for indexing Raw as an array Raw.data
-Base.getindex(raw::Raw, indices...) = raw.data[get_data(raw, indices...)...]
-Base.setindex!(raw::Raw, v, indices...) = setindex!(raw.data, v, get_data(raw, indices...)...)
+Base.getindex(raw::Raw, indices...) = raw.data[_get_data(raw, indices...)...]
+Base.setindex!(raw::Raw, v, indices...) = setindex!(raw.data, v, _get_data(raw, indices...)...)
 
 # Commented out first and last index until decided if we want to support `begin` and `end`
 # syntax, as it would require changes in get_data - e.g. fixed order of selectors.
@@ -160,8 +160,8 @@ Base.IndexStyle(raw::Raw) = IndexLinear()
 
 Base.axes(raw::Raw) = axes(raw.data)
 Base.axes(raw::Raw, d) = axes(raw.data, d)
-Base.view(raw::Raw, indices...) = view(raw.data, get_data(raw, indices...)...)
-Base.maybeview(raw::Raw, indices...) = Base.maybeview(raw.data, get_data(raw, indices...)...)
+Base.view(raw::Raw, indices...) = view(raw.data, _get_data(raw, indices...)...)
+Base.maybeview(raw::Raw, indices...) = Base.maybeview(raw.data, _get_data(raw, indices...)...)
 
 
 # Pretty printing structs
@@ -281,7 +281,7 @@ function create_epochs(raw::Raw, start::Number, stop::Number)
     nEpochs = size(raw.events, 1)
     ranges = Vector{UnitRange{Int}}(undef, nEpochs)
     for i in 1:nEpochs
-        @views ranges[i] = get_times(raw, start, stop, anchor=raw.events[i,1])
+        @views ranges[i] = _get_times(raw, start, stop, anchor=raw.events[i,1])
     end
     
     epochs = Array{typeof(raw.data[1]),3}(undef, length(ranges[1]), size(raw.data, 2), nEpochs)

@@ -293,7 +293,7 @@ function filter_data!(raw::Raw; highPass=0, lowPass=0,
     digFilter = design_filter(highPass, lowPass, srate, window, transition, passErr, stopErr)
 
     # Apply the filter to EEG channels
-    chans = get_channels(raw, :EEG)
+    chans = _get_channels(raw, :EEG)
     filter_data!(raw.data, digFilter, chans, srate, nThreads)
 
     # Update the channel information

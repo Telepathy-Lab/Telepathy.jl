@@ -11,7 +11,7 @@ function resample!(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads
 
     # Pick only EEG data for resampling
     # Other channels are assumed to be digital and will be decimated
-    chansEEG = get_channels(raw, :EEG)
+    chansEEG = _get_channels(raw, :EEG)
     oldSrate = raw.chans.srate[1]
     sRatio = newSrate / oldSrate
     oldLength = size(raw.data, 1)

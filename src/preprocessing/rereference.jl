@@ -39,7 +39,7 @@ For a list of possible reference options, see [`set_reference!`](@ref).
 # Default to avergae reference
 set_reference(raw::Raw) = set_reference(raw, :average)
 
-# Generic case for everything that can be parsed by get_channels
+# Generic case for everything that can be parsed by _get_channels
 function set_reference(raw::Raw, reference)
     new = deepcopy(raw)
     set_reference!(new, reference)
@@ -62,7 +62,7 @@ You can find information about the current reference for each channel under
 - `reference::Union{Symbol, Integer, String, UnitRange, 
                     AbstractVector{<:Union{Symbol, Integer, String}}}`: Reference to use.
     Use `:average` to set the reference to the average of all EEG channels or `:none` to
-    not change the reference. Otherwise, all arguments accepted by [`get_channels`](@ref)
+    not change the reference. Otherwise, all arguments accepted by [`_get_channels`](@ref)
     are valid.
 
 ##### Examples
@@ -83,21 +83,21 @@ new = set_reference(raw, ["Fp1", "Fp2"])
 # Default to avergae reference
 set_reference!(raw::Raw) = set_reference!(raw, :average)
 
-# Generic case for everything that can be parsed by get_channels
-set_reference!(raw::Raw, reference) = set_reference!(raw, get_channels(raw, reference))
+# Generic case for everything that can be parsed by _get_channels
+set_reference!(raw::Raw, reference) = set_reference!(raw, _get_channels(raw, reference))
 
 # Resolve the average and none cases
 function set_reference!(raw::Raw, reference::Symbol)
     if reference == :average
-        set_reference!(raw, get_channels(raw, :EEG), case="average")
+        set_reference!(raw, _get_channels(raw, :EEG), case="average")
     elseif reference == :none
         return nothing
     else
-        set_reference!(raw, get_channels(raw, reference), case=string(reference))
+        set_reference!(raw, _get_channels(raw, reference), case=string(reference))
     end
 end
 
-# Main function working on the output from get_channels
+# Main function working on the output from _get_channels
 function set_reference!(raw::Raw, reference::Vector{<:Integer}; case="")
     if length(reference) == 0
         error("No channels found for the requested reference.")
@@ -116,7 +116,7 @@ function set_reference!(raw::Raw, reference::Vector{<:Integer}; case="")
     end
 
     # Subtract the reference only from the EEG data
-    channels = get_channels(raw, :EEG)
+    channels = _get_channels(raw, :EEG)
     #@views raw[:, channels] .-= ref
     rereference!(raw.data, ref, channels)
     # Vector of vectors is necessary even if we broadcast to inner vectors
@@ -125,7 +125,7 @@ function set_reference!(raw::Raw, reference::Vector{<:Integer}; case="")
     return nothing
 end
 
-set_reference!(array::AbstractArray, reference) = set_reference!(array, get_channels(array, reference))
+set_reference!(array::AbstractArray, reference) = set_reference!(array, _get_channels(array, reference))
 
 function set_reference!(array::AbstractArray, reference::Vector{<:Integer})
     if length(reference) == 0

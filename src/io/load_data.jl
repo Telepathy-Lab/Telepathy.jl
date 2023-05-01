@@ -110,7 +110,7 @@ function parse_filters(flt::String)
 end
 
 function parse_status!(raw::Raw{BDF})
-    idx = get_channels(raw, "Status")
+    idx = _get_channels(raw, "Status")
     if length(idx) == 1
         raw.status["lowTrigger"], raw.status["highTrigger"], raw.status["status"] = parse_status(raw.data[:,idx[1]])
     elseif length(idx) == 0

@@ -35,7 +35,7 @@ include("io/events.jl")
 export find_events!
 
 include("channels/channels.jl")
-export channel_names, get_channels, set_type!
+export channel_names, get_channels, get_times, get_data, set_type!
 
 include("channels/layout.jl")
 export read_layout, set_layout!
