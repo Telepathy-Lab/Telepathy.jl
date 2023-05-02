@@ -28,7 +28,9 @@ function _get_times(raw::Raw, times::StepRangeLen; anchor::Number=0)
     return UnitRange(start, finish)
 end
 
-function offset_time(epochs::Epochs, time::AbstractFloat) 
+_get_sample(raw::Raw, time::Number) = round(Int64, time*get_srate(raw))
+
+function _offset_time(epochs::Epochs, time::AbstractFloat) 
     return findfirst(x -> isapprox(x, time, atol=1/(epochs.chans.srate[1]*2)), epochs.times)
 end
 
@@ -51,8 +53,8 @@ function _get_times(epochs::Epochs, times::StepRangeLen; anchor::Number=0.)
         error("Anchor must be an integer or float.")
     end
 
-    start = offset_time(epochs, times[begin] + anchor)
-    finish = offset_time(epochs, times[end] + anchor)
+    start = _offset_time(epochs, times[begin] + anchor)
+    finish = _offset_time(epochs, times[end] + anchor)
 
     isnothing(start) && error("Selection start is outside of the epoch range.")
     isnothing(finish) && error("Selection end is outside of the epoch range.")
