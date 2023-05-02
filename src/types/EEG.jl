@@ -266,7 +266,7 @@ Epochs(raw::Raw; start=-0.2, stop=0.8) = Epochs(
     raw.info,
     raw.chans,
     create_epochs(raw, start, stop),
-    raw.times,
+    start:1/raw.chans.srate[1]:stop,
     raw.events,
     Int[]
 )
@@ -281,7 +281,7 @@ function create_epochs(raw::Raw, start::Number, stop::Number)
     nEpochs = size(raw.events, 1)
     ranges = Vector{UnitRange{Int}}(undef, nEpochs)
     for i in 1:nEpochs
-        @views ranges[i] = _get_times(raw, start, stop, anchor=raw.events[i,1])
+        ranges[i] = _get_times(raw, start, stop, anchor=raw.events[i,1])
     end
     
     epochs = Array{typeof(raw.data[1]),3}(undef, length(ranges[1]), size(raw.data, 2), nEpochs)
