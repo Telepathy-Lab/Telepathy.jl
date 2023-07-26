@@ -27,7 +27,7 @@ end
 set_type!(data, chans, type::Symbol) = set_type!(data, chans, eval(:(Telepathy.$type)))
 set_type!(data, chans, type::Type{<:Sensor}) = set_type!(data, chans, type())
 function set_type!(data, chans, type::Sensor)
-    chanIDs = get_channels(data, chans)
+    chanIDs = _get_channels(data, chans)
     for i in chanIDs
         data.chans.type[i] = type
     end

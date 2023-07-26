@@ -43,6 +43,9 @@ export read_layout, set_layout!
 include("data/selection.jl")
 export select
 
+include("data/aggregation.jl")
+export aggregate
+
 include("preprocessing/filter.jl")
 export filter_data, filter_data!, design_filter
 
