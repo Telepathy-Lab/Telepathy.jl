@@ -230,7 +230,7 @@ function Makie.plot(epochs::Epochs...; channels=1:20, epochSpan=1:10, step=0.25,
     fig, plotAx, barAx, helpAx = create_browser_window()
 
     params = [BrowserParams(epoch) for epoch in epochs]
-    params[1].chanSelection = get_channels(epochs[1], channels)
+    params[1].chanSelection = _get_channels(epochs[1], channels)
     params[1].timeSpan = 1:1:size(epochs[1].data, 1)
     params[1].buffSize = buffSize
     params[1].epochSpan = epochSpan

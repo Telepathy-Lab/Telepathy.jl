@@ -35,10 +35,16 @@ include("io/events.jl")
 export find_events!
 
 include("channels/channels.jl")
-export channel_names, get_channels, set_type!
+export channel_names, set_type!
 
 include("channels/layout.jl")
 export read_layout, set_layout!
+
+include("data/selection.jl")
+export select
+
+include("data/aggregation.jl")
+export aggregate
 
 include("preprocessing/filter.jl")
 export filter_data, filter_data!, design_filter

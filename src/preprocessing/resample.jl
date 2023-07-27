@@ -11,7 +11,7 @@ function resample!(raw::Raw, newSrate::Int; type=:FFT, nThreads=options.nThreads
 
     # Pick only EEG data for resampling
     # Other channels are assumed to be digital and will be decimated
-    chansEEG = get_channels(raw, :EEG)
+    chansEEG = _get_channels(raw, :EEG)
     oldSrate = raw.chans.srate[1]
     sRatio = newSrate / oldSrate
     oldLength = size(raw.data, 1)
@@ -80,14 +80,14 @@ function resample!(raw::Raw, resampledData, chansEEG, sRatio, oldLength, nThread
     setphase!.(polyFIR, τ)
 
     # We are padding the data with 1s of mirrored values on both ends
-    oldRate = raw.chans.srate[1]
+    oldRate = Int(raw.chans.srate[1])
     newRate = Int(oldRate*sRatio)
 
     mirrorBuffer = oldLength+2*oldRate
     outLen       = ceil(Int, mirrorBuffer*sRatio)
     reqInlen     = inputlength(polyFIR[1], outLen)
     reqZerosLen  = reqInlen - mirrorBuffer
-    
+
     inputBuffer  = [zeros(Float32, mirrorBuffer+reqZerosLen) for thr in 1:nThreads]
     outputBuffer = [zeros(Float32, Int(mirrorBuffer*sRatio)) for thr in 1:nThreads]
     
